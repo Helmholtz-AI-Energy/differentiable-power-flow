@@ -25,7 +25,7 @@ Alternatively, you can install ``differentiable power flow`` locally. To achieve
    - Install basic dependencies: ``pip install -e .``
 
 ## How to contribute
-Check out our [contribution guidelines](CONTRIBUTING.md) if you are interested in contributing to the `OptoLlama` project :fire:.
+Check out our [contribution guidelines](CONTRIBUTING.md) if you are interested in contributing to the `differentiable-power-flow` project :fire:.
 Please also carefully check our [code of conduct](CODE_OF_CONDUCT.md) :blue_heart:.
 
 ## Acknowledgments
