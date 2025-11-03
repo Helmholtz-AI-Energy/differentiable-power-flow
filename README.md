@@ -1,6 +1,6 @@
-<!-- <div align="center">
-  <img src="./assets/optollama.svg" height="350px">
-</div> -->
+<div align="center">
+  <img src="./assets/dpf-logo.png" height="250px">
+</div>
 
 -----------
 
@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue)](https://opensource.org/license/mit)
 [![](https://img.shields.io/badge/Contact-DPF-orange?label=Contact)](markus.goetz@kit.edu)
 
-
+Energy grids are vital but fragile infrastructures that require active management to maintain stability and avoid blackouts, a task complicated by increasing size and the transition to fluctuating renewable sources. We explore Differentiable Power Flow Optimization (DPF), a new method for power-flow simulation using gradient-based optimization, which, while slower than the standard Newton-Raphson (NR) for small grids, shows promise for parallelized time-series calculations and significantly outperforms NR in terms of time and memory scaling on very large grids.
 
 ## Installation
 We heavily recommend installing the `differentiable-power-flow` package in a dedicated `Python3.11+` virtual environment. You can
