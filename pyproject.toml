@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dpf"
+version = "0.9.0"
+description = "Differentiable Power Flow Optimization (DPF), a new method for power-flow simulation using gradient-based optimization"
+authors = [
+    {name = "Öz, Muhammed", email="muhammed.oez@kit.edu"}
+]
+maintainers = [
+    {name = "Öz, Muhammed", email="muhammed.oez@kit.edu"}
+]
+readme = "README.md"
+license = {file = "LICENSE.md"}
+keywords = ["energy grid", "power flow", "gradient-based optimization", "newton-raphson"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: GPU",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+
+requires-python = ">=3.11"
+
+dependencies = [
+  "numpy",
+  "pandas",
+  "matplotlib",
+  "torch"
+]
+
+[project.urls]
+Repository = "https://github.com/Helmholtz-AI-Energy/differentiable-power-flow"
+Issues = "https://github.com/Helmholtz-AI-Energy/differentiable-power-flow/issues"
