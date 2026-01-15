@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "dpf"
@@ -27,15 +27,85 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
 
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 dependencies = [
-  "numpy",
-  "pandas",
-  "matplotlib",
-  "torch"
+    "lips-benchmark",
+    "numpy",
+    "pandas==2.2.3",
+    "matplotlib==3.10.1",
+    "torch==2.6.0",
+    "LightSim2Grid==0.10.2",
+    "Grid2Op==1.10.5.post1",
+    "pandapower==2.14.11",
+    "optuna==4.2.1"
 ]
 
 [project.urls]
 Repository = "https://github.com/Helmholtz-AI-Energy/differentiable-power-flow"
 Issues = "https://github.com/Helmholtz-AI-Energy/differentiable-power-flow/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Entry Points to run scripts. Run by typing run_ex1 in console after installing
+[project.scripts]
+run-all-relevant = "dpf.scripts.run_all_relevant:main"
+run-ex1 = "dpf.scripts.ex1_running_torch_solver:main"
+run-ex2 = "dpf.scripts.ex2_hyperparameter_search:main"
+run-ex2-eval = "dpf.scripts.ex2_hyperparameter_search_eval:main"
+run-ex3 = "dpf.scripts.ex3_pareto_plot:main"  # run with cmd argument --method "NR" (or "DC" or "TO", default "TO")
+run-ex3-eval = "dpf.scripts.ex3_pareto_plot_eval:main" # assumes ex3 to be run with all three methods
+run-ex4-data = "dpf.scripts.ex4_data_generation:main"
+run-ex4-hyperparam = "dpf.scripts.ex4_large_grid_hyperparam_search:main"
+run-ex4a = "dpf.scripts.ex4a_scaling:main"
+run-ex4a-eval = "dpf.scripts.ex4a_scaling_eval:main"
+run-ex4b = "dpf.scripts.ex4b_scaling:main" # manually override use_gpu to True if needed, default False
+run-ex4b-eval = "dpf.scripts.ex4b_scaling_eval:main"
+run-ex5-data = "dpf.scripts.ex5_data_generation:main"
+run-ex5-hyperparam = "dpf.scripts.ex5_hyperparameter_search:main"
+run-ex5a = "dpf.scripts.ex5a_time_series:main"
+run-ex5a-eval = "dpf.scripts.ex5a_time_series_eval:main"
+run-ex5b = "dpf.scripts.ex5b_time_series_batching:main"
+run-ex5b-eval = "dpf.scripts.ex5b_time_series_batching_eval:main"
+run-ex5c = "dpf.scripts.ex5c_time_series_batching_pegase9241:main"
+run-ex5c-eval = "dpf.scripts.ex5c_time_series_batching_pegase9241_eval:main"
+run-ex6a = "dpf.scripts.ex6a_time_series_hypergrid_NR:main"
+run-ex6a-eval = "dpf.scripts.ex6a_time_series_hypergrid_NR_eval:main"
+run-ex6b = "dpf.scripts.ex6b_time_series_hypergrid_DPF:main"
+run-ex6b-eval = "dpf.scripts.ex6b_time_series_hypergrid_DPF_eval:main"
+run-ex6c-eval = "dpf.scripts.ex6c_evaluate_ab:main"
+run-ex7a = "dpf.scripts.ex7a_single_grid_sparse_vs_dense_NR:main"
+run-ex7a-eval = "dpf.scripts.ex7a_single_grid_sparse_vs_dense_NR_eval:main"
+run-ex7b = "dpf.scripts.ex7b_single_grid_sparse_vs_dense_DPF:main"
+run-ex7b-eval = "dpf.scripts.ex7b_single_grid_sparse_vs_dense_DPF_eval:main"
+run-ex7c-eval = "dpf.scripts.ex7c_evaluate:main"
+run-ex8a = "dpf.scripts.ex8a_sparsity:main" # needs ex1 dataset, only runs the sparse variant, for dense change the strategy in code
+run-ex8b = "dpf.scripts.ex8b_sparsity:main" #  ^
+run-ex9a = "dpf.scripts.ex9a_super_grid_NR:main"
+run-ex9a-eval = "dpf.scripts.ex9a_super_grid_NR_eval:main"
+run-ex9b = "dpf.scripts.ex9b_hypergrid_DPF:main"
+run-ex9b-eval = "dpf.scripts.ex9b_hypergrid_DPF_eval:main"
+run-ex9c-eval = "dpf.scripts.ex9c_eval:main"
+run-ex10a-hyperparam = "dpf.scripts.ex10a_hyperparameter_search:main"
+run-ex10a-hyperparam-eval = "dpf.scripts.ex10a_hyperparameter_search_eval:main"
+run-ex10a = "dpf.scripts.ex10a_wall_clock_scaling:main"
+run-ex10a-eval = "dpf.scripts.ex10a_wall_clock_scaling_eval:main"
+
+
+# install with: pip install -e "."
+# run plot-producing scripts with: run-all-relevant
+# alternatively run with: python src/dpf/scripts/run_all_relevant.py
+
+# run individual scripts with e.g. run-ex1 (see above)
+# or with python src/dpf/scripts/ex1_running_torch_solver.py
+
+# If installation fails (should not happen):
+# lips-benchmark requires a specific numpy version and other tools others
+# so we have to override the numpy version after installing lips-benchmark:
+
+# pip install lips-benchmark==0.2.7
+# pip install numpy==1.26.4
+# pip install -e . --no-deps
