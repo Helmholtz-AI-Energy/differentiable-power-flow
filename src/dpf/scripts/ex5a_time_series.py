@@ -6,6 +6,7 @@ Idea: Make hyperparameters in 2 phases: "Search mode" and "Fine-tune mode",
 e.g. use a high LR for phase 1 and a smaller LR for phase 2.
 and use only the fine-tune mode for Time Series?
 """
+
 import pickle
 
 import grid2op
@@ -36,30 +37,51 @@ def run_experiment(start_iter, max_iter):
         "scheduler_kwargs": {"step_size": 100, "gamma": 0.773},
         "loss_fn": torch.nn.MSELoss(),
         "start_iter": start_iter,
-        "tol": 1e-8}
+        "tol": 1e-8,
+    }
 
     # tuning first step
 
     continuation_hyperparams = {
         "optimizer_class": torch.optim.Adam,
-        "optimizer_kwargs": {"lr": 0.0002707478834355143, "betas": (0.7847655810896329, 0.6624293009401483)},
+        "optimizer_kwargs": {
+            "lr": 0.0002707478834355143,
+            "betas": (0.7847655810896329, 0.6624293009401483),
+        },
         "scheduler_class": torch.optim.lr_scheduler.ReduceLROnPlateau,
-        "scheduler_kwargs": {"factor": 0.8, "patience": 2, "threshold": 0.03880181832012029,
-                             "cooldown": 2},
+        "scheduler_kwargs": {
+            "factor": 0.8,
+            "patience": 2,
+            "threshold": 0.03880181832012029,
+            "cooldown": 2,
+        },
         "loss_fn": torch.nn.MSELoss(),
         "max_iter": max_iter,
-        "tol": 1e-8}
+        "tol": 1e-8,
+    }
 
-    solver = TimeSeriesPowerFlowSolver(backend=backend, hyperparams=hyperparams,
-                                       continuation_hyperparams=continuation_hyperparams)
-    solver.preprocess(topo_vect, prod_p[0], prod_v[0], load_p[0], load_q[0], Ybus, Sbus[0], PV_nodes)
+    solver = TimeSeriesPowerFlowSolver(
+        backend=backend,
+        hyperparams=hyperparams,
+        continuation_hyperparams=continuation_hyperparams,
+    )
+    solver.preprocess(
+        topo_vect, prod_p[0], prod_v[0], load_p[0], load_q[0], Ybus, Sbus[0], PV_nodes
+    )
     # the productions and loads are already present in Sbus and can be ignored for power-flows
     # S = gens - loads for the corresponding bus
 
     solver.init_v("ones")
 
-    losses = solver.run_time_series(prod_p, prod_v, load_p, load_q, Sbus, freeze_start_params=False,
-                                    report_metrics=True)
+    losses = solver.run_time_series(
+        prod_p,
+        prod_v,
+        load_p,
+        load_q,
+        Sbus,
+        freeze_start_params=False,
+        report_metrics=True,
+    )
     average_percentage_diffes = solver.average_percentage_diffes
     # losses has shape [num_time_steps, num_iterations]
 
@@ -68,10 +90,7 @@ def run_experiment(start_iter, max_iter):
     losses = list(losses)
     average_percentage_diffes = list(average_percentage_diffes)
 
-    results = {
-        "losses": losses,
-        "average_percentage_diffes": average_percentage_diffes
-    }
+    results = {"losses": losses, "average_percentage_diffes": average_percentage_diffes}
 
     with open(f"out/temp/ex5_time_series.pkl", "wb") as writeTOFile:
         pickle.dump(results, writeTOFile)

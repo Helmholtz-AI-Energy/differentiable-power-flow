@@ -2,8 +2,8 @@ import pandas as pd
 
 
 def main():
-    pd.set_option('display.max_colwidth', None)
-    pd.set_option('display.max_columns', None)
+    pd.set_option("display.max_colwidth", None)
+    pd.set_option("display.max_columns", None)
 
     optimizer_strats = ["Adam", "SGD", "RMSprop"]
     # optimizer_strats = ["Adam"]
@@ -18,8 +18,13 @@ def main():
         for scheduler_strat in scheduler_strats:
             for num_iter in num_iters:
                 df = pd.read_csv(
-                    f"out/temp/ex2_trials_{optimizer_strat}_{scheduler_strat}_{num_iter}.csv")
-                print(optimizer_strat, scheduler_strat, df.sort_values("value")["value"].iloc[0])
+                    f"out/temp/ex2_trials_{optimizer_strat}_{scheduler_strat}_{num_iter}.csv"
+                )
+                print(
+                    optimizer_strat,
+                    scheduler_strat,
+                    df.sort_values("value")["value"].iloc[0],
+                )
 
     # Adam constant 0.1967925840098253
     # Adam StepLR 0.1994482126301495

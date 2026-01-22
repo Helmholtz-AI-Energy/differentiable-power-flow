@@ -11,12 +11,20 @@ def main():
 
     to_times = []
     for nb_extra_connections in nbs_extra_connections_to_report:
-        with open(f"out/temp/ex7b_{nb_extra_connections}_{max_iter}.pkl",
-                  "rb") as readFile:
+        with open(
+            f"out/temp/ex7b_{nb_extra_connections}_{max_iter}.pkl", "rb"
+        ) as readFile:
             results = pickle.load(readFile)
             to_times.append(results["times"])
 
-    plt.plot(nbs_extra_connections_to_report, to_times, label="DPF", color="red", marker="s", markersize=3)
+    plt.plot(
+        nbs_extra_connections_to_report,
+        to_times,
+        label="DPF",
+        color="red",
+        marker="s",
+        markersize=3,
+    )
 
     plt.xlabel(" Number of added connections")
     plt.ylabel("Time (init excluded) in s")
@@ -25,6 +33,7 @@ def main():
     # plt.show()
     plt.savefig(f"out/plots/ex7b_scalability.png")
     plt.close()
+
 
 if __name__ == "__main__":
     main()

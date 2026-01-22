@@ -3,8 +3,18 @@ import matplotlib.pyplot as plt
 
 
 def create_times_plot():
-    case_names = ["case118", "case_illinois200", "case300", "case1354pegase", "case1888rte",
-                  "case2869pegase", "case3120sp", "case6495rte", "case6515rte", "case9241pegase"]
+    case_names = [
+        "case118",
+        "case_illinois200",
+        "case300",
+        "case1354pegase",
+        "case1888rte",
+        "case2869pegase",
+        "case3120sp",
+        "case6495rte",
+        "case6515rte",
+        "case9241pegase",
+    ]
     grid_sizes = [118, 200, 300, 1354, 1888, 2869, 3120, 6495, 6515, 9241]
     optimizers = ["Adam"]
 
@@ -48,9 +58,17 @@ def create_times_plot():
                 to_losses.append(results["mismatches"])
 
         for iteration in [0]:
-            plt.plot(grid_sizes, [x[iteration] for x in to_times], label="DPF", color=colors[i], marker="^")
+            plt.plot(
+                grid_sizes,
+                [x[iteration] for x in to_times],
+                label="DPF",
+                color=colors[i],
+                marker="^",
+            )
 
-        print([x[109] - x[9] for x in to_times])  # loading the grid takes most time, the iterations are fast
+        print(
+            [x[109] - x[9] for x in to_times]
+        )  # loading the grid takes most time, the iterations are fast
 
     plt.xlabel("Grid Size")
     plt.ylabel("Time with grid loading [s]")
@@ -104,10 +122,21 @@ def create_large_grid_plot():
     nr_times[0] = nr_times[0] - first_time_step
     dc_times[0] = dc_times[0] - first_time_step
 
-    plt.plot(to_times[0][:-1], 100 * to_normalized_losses[0], label="DPF", color="green", marker="^", linewidth=1,
-             markersize=1)
-    plt.plot(dc_times[0], 100 * dc_normalized_losses[0], label="DC", color="blue", marker="o")
-    plt.plot(nr_times[0], 100 * nr_normalized_losses[0], label="NR", color="red", marker="s")
+    plt.plot(
+        to_times[0][:-1],
+        100 * to_normalized_losses[0],
+        label="DPF",
+        color="green",
+        marker="^",
+        linewidth=1,
+        markersize=1,
+    )
+    plt.plot(
+        dc_times[0], 100 * dc_normalized_losses[0], label="DC", color="blue", marker="o"
+    )
+    plt.plot(
+        nr_times[0], 100 * nr_normalized_losses[0], label="NR", color="red", marker="s"
+    )
     plt.xlabel("Time difference from first iteration in s")
     plt.ylabel("Average flow difference in %")
     plt.title(f"Pareto plot of power-flow methods on case9241pegase")
@@ -160,10 +189,21 @@ def create_small_grid_plot():
     nr_times[0] = nr_times[0] - first_time_step
     dc_times[0] = dc_times[0] - first_time_step
 
-    plt.plot(to_times[0][:-1], 100 * to_normalized_losses[0], label="DPF", color="green", marker="^", linewidth=1,
-             markersize=1)
-    plt.plot(dc_times[0], 100 * dc_normalized_losses[0], label="DC", color="blue", marker="o")
-    plt.plot(nr_times[0], 100 * nr_normalized_losses[0], label="NR", color="red", marker="s")
+    plt.plot(
+        to_times[0][:-1],
+        100 * to_normalized_losses[0],
+        label="DPF",
+        color="green",
+        marker="^",
+        linewidth=1,
+        markersize=1,
+    )
+    plt.plot(
+        dc_times[0], 100 * dc_normalized_losses[0], label="DC", color="blue", marker="o"
+    )
+    plt.plot(
+        nr_times[0], 100 * nr_normalized_losses[0], label="NR", color="red", marker="s"
+    )
     plt.xlabel("Time difference from first iteration in s")
     plt.ylabel("Average flow difference in %")
     plt.title(f"Pareto plot of power-flow methods on case118")

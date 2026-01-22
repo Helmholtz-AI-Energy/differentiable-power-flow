@@ -28,15 +28,20 @@ def main():
             # create time_per_iteration vs batch_size plot
             for batch_size in batch_sizes:
                 for max_iter in max_iters:
-                    with open(f"out/temp/ex5b_time_series_{use_gpu}_{max_iter}_{batch_size}.pkl",
-                              "rb") as readTOFile:
+                    with open(
+                        f"out/temp/ex5b_time_series_{use_gpu}_{max_iter}_{batch_size}.pkl",
+                        "rb",
+                    ) as readTOFile:
                         results = pickle.load(readTOFile)
                         losses = results["losses"]
                         times = results["times"]
                         individual_losses = results["individual_losses"]
-                        current_mean_time = (times[-1] - times[
-                            -101]) / 100 * 1000  # use 100 iterations to calculate the time in ms
-                        times_per_iteration_per_sample.append(current_mean_time / batch_size)
+                        current_mean_time = (
+                            (times[-1] - times[-101]) / 100 * 1000
+                        )  # use 100 iterations to calculate the time in ms
+                        times_per_iteration_per_sample.append(
+                            current_mean_time / batch_size
+                        )
 
             plt.xlabel("Batch Size")
             plt.ylabel("Time per iteration and sample (ms)")
@@ -53,8 +58,10 @@ def main():
     if plot_losses:
         for batch_size in batch_sizes:
             for max_iter in [1000]:
-                with open(f"out/temp/ex5b_time_series_{use_gpu}_{max_iter}_{batch_size}.pkl",
-                          "rb") as readTOFile:
+                with open(
+                    f"out/temp/ex5b_time_series_{use_gpu}_{max_iter}_{batch_size}.pkl",
+                    "rb",
+                ) as readTOFile:
                     results = pickle.load(readTOFile)
                     losses = results["losses"]
                     individual_losses = results["individual_losses"]
@@ -73,7 +80,9 @@ def main():
                     else:
                         plt.plot(losses[1:100], color="blue", label="Combined loss")
                     plt.legend()
-                    plt.savefig(f"out/plots/ex5b_time_series_batching_losses_{batch_size}.png")
+                    plt.savefig(
+                        f"out/plots/ex5b_time_series_batching_losses_{batch_size}.png"
+                    )
                     plt.close()
 
 

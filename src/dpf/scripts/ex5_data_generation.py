@@ -5,6 +5,7 @@ Useful sources:
 https://github.com/Grid2op/lightsim2grid/blob/master/benchmarks/benchmark_grid_size.py
 LIPS repository
 """
+
 import grid2op
 
 """
@@ -24,6 +25,7 @@ except ImportError:
     from lightsim2grid import SecurityAnalysis as ContingencyAnalysis
 
 import os
+
 
 def main():
     # two options,
@@ -49,13 +51,51 @@ def main():
     # Sbus = grid.get_Sbus_solver()
     # print(Sbus[:2])
 
-    VARIABLES = ("prod_p", "prod_v", "load_p", "load_q", "line_status", "topo_vect",
-                 "a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v",
-                 "v_or", "v_ex", "theta_or", "theta_ex")
+    VARIABLES = (
+        "prod_p",
+        "prod_v",
+        "load_p",
+        "load_q",
+        "line_status",
+        "topo_vect",
+        "a_or",
+        "a_ex",
+        "p_or",
+        "p_ex",
+        "q_or",
+        "q_ex",
+        "prod_q",
+        "load_v",
+        "v_or",
+        "v_ex",
+        "theta_or",
+        "theta_ex",
+    )
 
-    ALL_VARIABLES = ("prod_p", "prod_v", "load_p", "load_q", "line_status", "topo_vect",
-                     "a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v",
-                     "v_or", "v_ex", "theta_or", "theta_ex", "SBus", "PV_nodes", "slack", "YBus")
+    ALL_VARIABLES = (
+        "prod_p",
+        "prod_v",
+        "load_p",
+        "load_q",
+        "line_status",
+        "topo_vect",
+        "a_or",
+        "a_ex",
+        "p_or",
+        "p_ex",
+        "q_or",
+        "q_ex",
+        "prod_q",
+        "load_v",
+        "v_or",
+        "v_ex",
+        "theta_or",
+        "theta_ex",
+        "SBus",
+        "PV_nodes",
+        "slack",
+        "YBus",
+    )
 
     FIXED_VARIABLES = ("line_status", "topo_vect", "PV_nodes", "YBus")
 
@@ -65,7 +105,9 @@ def main():
     for attr_nm in VARIABLES:
         array = getattr(env.current_obs, attr_nm)
         if attr_nm in FIXED_VARIABLES:
-            data[attr_nm] = np.zeros((1, array.shape[0]), dtype=array.dtype)  # only save once
+            data[attr_nm] = np.zeros(
+                (1, array.shape[0]), dtype=array.dtype
+            )  # only save once
         else:
             data[attr_nm] = np.zeros((nb_steps, array.shape[0]), dtype=array.dtype)
 
@@ -79,13 +121,14 @@ def main():
         row_indices = []
         col_indices = []
     else:
-        data["YBus"] = np.zeros((1, n_bus_bars, n_bus_bars),
-                                dtype=np.complex128)
+        data["YBus"] = np.zeros((1, n_bus_bars, n_bus_bars), dtype=np.complex128)
 
     nb_step = 0
     while not done:
         act = my_agent.act(obs, reward, done)
-        obs, reward, done, info = env.step(act)  # we can ignore obs here since we access the env directly
+        obs, reward, done, info = env.step(
+            act
+        )  # we can ignore obs here since we access the env directly
 
         grid = env.backend._grid
 
@@ -100,7 +143,9 @@ def main():
         # store physics attributes, see powergridDataSet.py-->_store_physics()
         nb_bus, unique_bus, bus_or, bus_ex = obs._aux_fun_get_bus()
         n_bus_bars = obs._obs_env.n_sub * 2
-        admittance_matrix = np.zeros(shape=(n_bus_bars, n_bus_bars), dtype=np.complex128)
+        admittance_matrix = np.zeros(
+            shape=(n_bus_bars, n_bus_bars), dtype=np.complex128
+        )
         Injection_vect = np.zeros(shape=(n_bus_bars), dtype=np.complex128)
         pv_nodes = np.zeros(shape=(n_bus_bars), dtype=bool)
         YBus = grid.get_Ybus_solver()
@@ -110,8 +155,10 @@ def main():
         pv_nodes[unique_bus[grid.get_pv_solver()]] = True
         prod_bus, _ = obs._get_bus_id(obs.gen_pos_topo_vect, obs.gen_to_subid)
         node_slack_id = prod_bus[-1]
-        index_gens_slack = (prod_bus == node_slack_id)
-        adjusted_prod_slack = obs.gen_p[index_gens_slack].sum() - Sbus[node_slack_id].real
+        index_gens_slack = prod_bus == node_slack_id
+        adjusted_prod_slack = (
+            obs.gen_p[index_gens_slack].sum() - Sbus[node_slack_id].real
+        )
 
         if store_as_sparse:
             if nb_step == 0:
@@ -127,12 +174,16 @@ def main():
         data["SBus"][nb_step, :] = Injection_vect
         if nb_step == 0:
             data["PV_nodes"][nb_step, :] = pv_nodes
-        data["slack"][nb_step, :] = np.array([node_slack_id, adjusted_prod_slack], dtype=np.float16)
+        data["slack"][nb_step, :] = np.array(
+            [node_slack_id, adjusted_prod_slack], dtype=np.float16
+        )
 
         if store_as_sparse:
             if nb_step == 0:
-                sparse_matrix = sparse.csr_matrix((ybus_data, (row_indices, col_indices)),
-                                                  shape=(1, n_bus_bars * n_bus_bars))
+                sparse_matrix = sparse.csr_matrix(
+                    (ybus_data, (row_indices, col_indices)),
+                    shape=(1, n_bus_bars * n_bus_bars),
+                )
                 data["YBus"] = sparse_matrix
 
         if reset_solver:
@@ -155,19 +206,30 @@ def main():
     os.mkdir(SAVE_PATH)
 
     for attr_nm in VARIABLES:
-        np.savez_compressed(f"{os.path.join(SAVE_PATH, attr_nm)}.npz", data=data[attr_nm])
+        np.savez_compressed(
+            f"{os.path.join(SAVE_PATH, attr_nm)}.npz", data=data[attr_nm]
+        )
 
-    if ("YBus" in data.keys()):
+    if "YBus" in data.keys():
         if store_as_sparse:
-            sparse.save_npz(os.path.join(SAVE_PATH, "YBus") + ".npz", matrix=data["YBus"])
+            sparse.save_npz(
+                os.path.join(SAVE_PATH, "YBus") + ".npz", matrix=data["YBus"]
+            )
         else:
-            np.savez_compressed(os.path.join(SAVE_PATH, "YBus") + ".npz", data=data["YBus"])
+            np.savez_compressed(
+                os.path.join(SAVE_PATH, "YBus") + ".npz", data=data["YBus"]
+            )
     if "SBus" in data.keys():
         np.savez_compressed(os.path.join(SAVE_PATH, "SBus") + ".npz", data=data["SBus"])
-    if ("PV_nodes" in data.keys()):
-        np.savez_compressed(os.path.join(SAVE_PATH, "PV_nodes") + ".npz", data=data["PV_nodes"])
-    if ("slack" in data.keys()):
-        np.savez_compressed(os.path.join(SAVE_PATH, "slack") + ".npz", data=data["slack"])
+    if "PV_nodes" in data.keys():
+        np.savez_compressed(
+            os.path.join(SAVE_PATH, "PV_nodes") + ".npz", data=data["PV_nodes"]
+        )
+    if "slack" in data.keys():
+        np.savez_compressed(
+            os.path.join(SAVE_PATH, "slack") + ".npz", data=data["slack"]
+        )
+
 
 if __name__ == "__main__":
     main()

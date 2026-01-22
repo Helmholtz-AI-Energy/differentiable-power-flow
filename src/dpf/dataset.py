@@ -1,5 +1,4 @@
 import os
-import os
 import numpy as np
 from scipy import sparse
 
@@ -8,50 +7,74 @@ from lips.dataset.powergridDataSet import downloadPowergridDataset
 
 parent_dir = os.pardir
 
-benchmark_kwargs = {"attr_x": ("prod_p", "prod_v", "load_p", "load_q"),
-                    "attr_y": ("a_or", "a_ex", "p_or", "p_ex", "v_or", "v_ex", "theta_or", "theta_ex"),
-                    "attr_tau": ("line_status", "topo_vect"),
-                    "attr_physics": ('YBus', 'SBus', 'PV_nodes', 'slack')}
+benchmark_kwargs = {
+    "attr_x": ("prod_p", "prod_v", "load_p", "load_q"),
+    "attr_y": ("a_or", "a_ex", "p_or", "p_ex", "v_or", "v_ex", "theta_or", "theta_ex"),
+    "attr_tau": ("line_status", "topo_vect"),
+    "attr_physics": ("YBus", "SBus", "PV_nodes", "slack"),
+}
 
 
 class LipsDataset:
+    """
+    Dataset from the LIPS benchmark https://lips.readthedocs.io/en/latest/index.html .
+    It uses Grid2Op to generate a dataset consisting of the 118-bus grid in various states.
+    """
 
-    def __init__(self, load_data=False, download_data=False, generate_data=False,
-                 load_ybus_as_as_sparse=True, env_name="lips_idf_2023"):
+    def __init__(
+        self,
+        load_data=False,
+        download_data=False,
+        generate_data=False,
+        load_ybus_as_as_sparse=True,
+        env_name="lips_idf_2023",
+    ):
         self.benchmark = None
-        self.BENCH_CONFIG_PATH = os.path.join("data/configs", "benchmarks", env_name + ".ini")
+        self.BENCH_CONFIG_PATH = os.path.join(
+            "data/configs", "benchmarks", env_name + ".ini"
+        )
         self.DATA_PATH = os.path.join(f"data/" + "input_data_local", env_name)
         self.LOG_PATH = f"data/logs/" + env_name + "_log.log"
 
-        os.makedirs(f"data/input_data_local/{env_name}/Benchmark_competition", exist_ok=True)
+        os.makedirs(
+            f"data/input_data_local/{env_name}/Benchmark_competition", exist_ok=True
+        )
         os.makedirs(f"data/logs", exist_ok=True)
 
         if download_data:
-            downloadPowergridDataset(os.path.join(f"data/", "input_data_local"), env_name)
+            downloadPowergridDataset(
+                os.path.join(f"data/", "input_data_local"), env_name
+            )
 
         if load_data or download_data:
-            self.benchmark = PowerGridBenchmark(benchmark_path=self.DATA_PATH,
-                                                config_path=self.BENCH_CONFIG_PATH,
-                                                benchmark_name="Benchmark_competition",
-                                                load_data_set=load_data,
-                                                load_ybus_as_sparse=load_ybus_as_as_sparse,
-                                                log_path=self.LOG_PATH,
-                                                )
+            self.benchmark = PowerGridBenchmark(
+                benchmark_path=self.DATA_PATH,
+                config_path=self.BENCH_CONFIG_PATH,
+                benchmark_name="Benchmark_competition",
+                load_data_set=load_data,
+                load_ybus_as_sparse=load_ybus_as_as_sparse,
+                log_path=self.LOG_PATH,
+            )
 
         if generate_data:
-            self.benchmark = PowerGridBenchmark(benchmark_path=self.DATA_PATH,
-                                                config_path=self.BENCH_CONFIG_PATH,
-                                                benchmark_name="Benchmark_competition",
-                                                load_data_set=False,  # to load already generated dataset
-                                                load_ybus_as_sparse=load_ybus_as_as_sparse,
-                                                # Ybus is registered as sparse
-                                                log_path=self.LOG_PATH,
-                                                )
+            self.benchmark = PowerGridBenchmark(
+                benchmark_path=self.DATA_PATH,
+                config_path=self.BENCH_CONFIG_PATH,
+                benchmark_name="Benchmark_competition",
+                load_data_set=False,  # to load already generated dataset
+                load_ybus_as_sparse=load_ybus_as_as_sparse,
+                # Ybus is registered as sparse
+                log_path=self.LOG_PATH,
+            )
 
-            self.benchmark.generate(nb_sample_train=int(3e5), nb_sample_val=int(1e5), nb_sample_test=int(1e5),
-                                    nb_sample_test_ood_topo=int(2e5), do_store_physics=True,
-                                    store_as_sparse=load_ybus_as_as_sparse)
-
+            self.benchmark.generate(
+                nb_sample_train=int(3e5),
+                nb_sample_val=int(1e5),
+                nb_sample_test=int(1e5),
+                nb_sample_test_ood_topo=int(2e5),
+                do_store_physics=True,
+                store_as_sparse=load_ybus_as_as_sparse,
+            )
 
         self.train_dataset = self.benchmark.train_dataset
         self.valid_dataset = self.benchmark.val_dataset
@@ -69,37 +92,90 @@ class LipsDataset:
         load_p = data["load_p"][sample_id]  # load active power, input variable
         load_q = data["load_q"][sample_id]  # load reactive power, input variable
 
-        line_status = data["line_status"][sample_id]  # connected or disconnected, redundant information!
+        line_status = data["line_status"][
+            sample_id
+        ]  # connected or disconnected, redundant information!
         topo_vect = data["topo_vect"][
-            sample_id]  # for each element (power line, production,load,storage): 1,2 (connected) or -1 (disconnected)
+            sample_id
+        ]  # for each element (power line, production,load,storage): 1,2 (connected) or -1 (disconnected)
 
         Ybus = data["YBus"][sample_id]  # admittance matrix
-        Sbus = data["SBus"][sample_id]  # complex injections at each bus (active power and reactive power)
-        PV_nodes = data["PV_nodes"][sample_id]  # specified (active) P(ower) and V(oltage magnitude) (generators?)
-        slack = data["slack"][sample_id]  # reference bus: voltage magnitude in kV and voltage angle in degrees?
+        Sbus = data["SBus"][
+            sample_id
+        ]  # complex injections at each bus (active power and reactive power)
+        PV_nodes = data["PV_nodes"][
+            sample_id
+        ]  # specified (active) P(ower) and V(oltage magnitude) (generators?)
+        slack = data["slack"][
+            sample_id
+        ]  # reference bus: voltage magnitude in kV and voltage angle in degrees?
 
         # target variables
-        a_or = data["a_or"][sample_id]  # currents at origin of power-lines, target variable
+        a_or = data["a_or"][
+            sample_id
+        ]  # currents at origin of power-lines, target variable
         a_ex = data["a_ex"][sample_id]  # currents at extremity, target variable
         p_or = data["p_or"][sample_id]  # active power at origin, target variable
         p_ex = data["p_ex"][sample_id]  # active power at extremity, target variable
         v_or = data["v_or"][sample_id]  # voltages at origin, target variable
         v_ex = data["v_ex"][sample_id]  # voltages at extremity, target variable
         theta_or = data["theta_or"][
-            sample_id]  # voltage angle at origin, optional target variable (other target variables can infer these)
-        theta_ex = data["theta_ex"][sample_id]  # voltage angle at extremity, optional target variable (..)
+            sample_id
+        ]  # voltage angle at origin, optional target variable (other target variables can infer these)
+        theta_ex = data["theta_ex"][
+            sample_id
+        ]  # voltage angle at extremity, optional target variable (..)
 
-        inputs = prod_p, prod_v, load_p, load_q, line_status, topo_vect, Ybus, Sbus, PV_nodes, slack
+        inputs = (
+            prod_p,
+            prod_v,
+            load_p,
+            load_q,
+            line_status,
+            topo_vect,
+            Ybus,
+            Sbus,
+            PV_nodes,
+            slack,
+        )
         targets = a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex
         return inputs, targets
 
 
-ALL_VARIABLES = ("prod_p", "prod_v", "load_p", "load_q", "line_status", "topo_vect",
-                 "a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v",
-                 "v_or", "v_ex", "theta_or", "theta_ex", "SBus", "PV_nodes", "slack", "YBus")
+ALL_VARIABLES = (
+    "prod_p",
+    "prod_v",
+    "load_p",
+    "load_q",
+    "line_status",
+    "topo_vect",
+    "a_or",
+    "a_ex",
+    "p_or",
+    "p_ex",
+    "q_or",
+    "q_ex",
+    "prod_q",
+    "load_v",
+    "v_or",
+    "v_ex",
+    "theta_or",
+    "theta_ex",
+    "SBus",
+    "PV_nodes",
+    "slack",
+    "YBus",
+)
 
 
 class CustomGridDataset:
+    """
+    This class loads a dataset generated for a specific grid (with env_name).
+    The dataset has to be created first as in
+    https://github.com/Grid2op/lightsim2grid/blob/master/benchmarks/benchmark_grid_size.py
+    or as in scripts/ex4_data_generation.
+    """
+
     def __init__(self, env_name="case2848rte", load_ybus_as_sparse=True):
         self.SAVE_PATH = os.path.join("data", "ex4_data", "blank" + env_name)
         self.data = {}
@@ -122,32 +198,62 @@ class CustomGridDataset:
         load_p = data["load_p"][sample_id]  # load active power, input variable
         load_q = data["load_q"][sample_id]  # load reactive power, input variable
 
-        line_status = data["line_status"][sample_id]  # connected or disconnected, redundant information!
+        line_status = data["line_status"][
+            sample_id
+        ]  # connected or disconnected, redundant information!
         topo_vect = data["topo_vect"][
-            sample_id]  # for each element (power line, production,load,storage): 1,2 (connected) or -1 (disconnected)
+            sample_id
+        ]  # for each element (power line, production,load,storage): 1,2 (connected) or -1 (disconnected)
 
         Ybus = data["YBus"][sample_id]  # admittance matrix
-        Sbus = data["SBus"][sample_id]  # complex injections at each bus (active power and reactive power)
-        PV_nodes = data["PV_nodes"][sample_id]  # specified (active) P(ower) and V(oltage magnitude) (generators?)
-        slack = data["slack"][sample_id]  # reference bus: voltage magnitude in kV and voltage angle in degrees?
+        Sbus = data["SBus"][
+            sample_id
+        ]  # complex injections at each bus (active power and reactive power)
+        PV_nodes = data["PV_nodes"][
+            sample_id
+        ]  # specified (active) P(ower) and V(oltage magnitude) (generators?)
+        slack = data["slack"][
+            sample_id
+        ]  # reference bus: voltage magnitude in kV and voltage angle in degrees?
 
         # target variables
-        a_or = data["a_or"][sample_id]  # currents at origin of power-lines, target variable
+        a_or = data["a_or"][
+            sample_id
+        ]  # currents at origin of power-lines, target variable
         a_ex = data["a_ex"][sample_id]  # currents at extremity, target variable
         p_or = data["p_or"][sample_id]  # active power at origin, target variable
         p_ex = data["p_ex"][sample_id]  # active power at extremity, target variable
         v_or = data["v_or"][sample_id]  # voltages at origin, target variable
         v_ex = data["v_ex"][sample_id]  # voltages at extremity, target variable
         theta_or = data["theta_or"][
-            sample_id]  # voltage angle at origin, optional target variable (other target variables can infer these)
-        theta_ex = data["theta_ex"][sample_id]  # voltage angle at extremity, optional target variable (..)
+            sample_id
+        ]  # voltage angle at origin, optional target variable (other target variables can infer these)
+        theta_ex = data["theta_ex"][
+            sample_id
+        ]  # voltage angle at extremity, optional target variable (..)
 
-        inputs = prod_p, prod_v, load_p, load_q, line_status, topo_vect, Ybus, Sbus, PV_nodes, slack
+        inputs = (
+            prod_p,
+            prod_v,
+            load_p,
+            load_q,
+            line_status,
+            topo_vect,
+            Ybus,
+            Sbus,
+            PV_nodes,
+            slack,
+        )
         targets = a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex
         return inputs, targets
 
 
 class SmallTimeSeriesDataset:
+    """This class has a similar function as the CustomGridDataset.
+    It additionally provides the get_injections() method which returns relevant variables in a batched form.
+    This is class is useful for loading time-series data after generation (e.g. at scripts/ex5...)
+    """
+
     def __init__(self, load_ybus_as_sparse=True):
         self.SAVE_PATH = os.path.join("data", "ex5_data", "l2rpn_idf_2023")
         self.data = {}
@@ -178,7 +284,9 @@ class SmallTimeSeriesDataset:
         load_p = data["load_p"][:]  # load active power, input variable
         load_q = data["load_q"][:]  # load reactive power, input variable
 
-        Sbus = data["SBus"][:]  # complex injections at each bus (active power and reactive power)
+        Sbus = data["SBus"][
+            :
+        ]  # complex injections at each bus (active power and reactive power)
 
         # target variables
         a_or = data["a_or"][:]  # currents at origin of power-lines, target variable
@@ -188,8 +296,11 @@ class SmallTimeSeriesDataset:
         v_or = data["v_or"][:]  # voltages at origin, target variable
         v_ex = data["v_ex"][:]  # voltages at extremity, target variable
         theta_or = data["theta_or"][
-                   :]  # voltage angle at origin, optional target variable (other target variables can infer these)
-        theta_ex = data["theta_ex"][:]  # voltage angle at extremity, optional target variable (..)
+            :
+        ]  # voltage angle at origin, optional target variable (other target variables can infer these)
+        theta_ex = data["theta_ex"][
+            :
+        ]  # voltage angle at extremity, optional target variable (..)
 
         inputs = prod_p, prod_v, load_p, load_q, Sbus
         targets = a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex
@@ -203,18 +314,25 @@ class SmallTimeSeriesDataset:
         load_p = data["load_p"][sample_id]  # load active power, input variable
         load_q = data["load_q"][sample_id]  # load reactive power, input variable
 
-        Sbus = data["SBus"][sample_id]  # complex injections at each bus (active power and reactive power)
+        Sbus = data["SBus"][
+            sample_id
+        ]  # complex injections at each bus (active power and reactive power)
 
         # target variables
-        a_or = data["a_or"][sample_id]  # currents at origin of power-lines, target variable
+        a_or = data["a_or"][
+            sample_id
+        ]  # currents at origin of power-lines, target variable
         a_ex = data["a_ex"][sample_id]  # currents at extremity, target variable
         p_or = data["p_or"][sample_id]  # active power at origin, target variable
         p_ex = data["p_ex"][sample_id]  # active power at extremity, target variable
         v_or = data["v_or"][sample_id]  # voltages at origin, target variable
         v_ex = data["v_ex"][sample_id]  # voltages at extremity, target variable
         theta_or = data["theta_or"][
-            sample_id]  # voltage angle at origin, optional target variable (other target variables can infer these)
-        theta_ex = data["theta_ex"][sample_id]  # voltage angle at extremity, optional target variable (..)
+            sample_id
+        ]  # voltage angle at origin, optional target variable (other target variables can infer these)
+        theta_ex = data["theta_ex"][
+            sample_id
+        ]  # voltage angle at extremity, optional target variable (..)
 
         inputs = prod_p, prod_v, load_p, load_q, Sbus
         targets = a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex

@@ -22,8 +22,19 @@ def main():
 
     lips_dataset = LipsDataset(download_data=download_data, load_data=True)
 
-    inputs, targets = (lips_dataset.get_sample(lips_dataset.train_dataset, 101))
-    prod_p, prod_v, load_p, load_q, line_status, topo_vect, Ybus, Sbus, PV_nodes, slack = inputs
+    inputs, targets = lips_dataset.get_sample(lips_dataset.train_dataset, 101)
+    (
+        prod_p,
+        prod_v,
+        load_p,
+        load_q,
+        line_status,
+        topo_vect,
+        Ybus,
+        Sbus,
+        PV_nodes,
+        slack,
+    ) = inputs
     a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex = targets
 
     env = grid2op.make(lips_dataset.benchmark.env_name, backend=LightSimBackend())
@@ -33,18 +44,28 @@ def main():
         "optimizer_class": torch.optim.Adam,
         "optimizer_kwargs": {"lr": 0.003377, "betas": (0.979681, 0.963442)},
         "scheduler_class": torch.optim.lr_scheduler.ReduceLROnPlateau,
-        "scheduler_kwargs": {"factor": 0.547191, "patience": 41, "threshold_mode": "rel",
-                             "threshold": 0.067321, "cooldown": 97},
+        "scheduler_kwargs": {
+            "factor": 0.547191,
+            "patience": 41,
+            "threshold_mode": "rel",
+            "threshold": 0.067321,
+            "cooldown": 97,
+        },
         "loss_fn": torch.nn.MSELoss(),
         "max_iter": 1000,
-        "tol": 1e-8}
+        "tol": 1e-8,
+    }
 
     torch_solver = TorchPowerFlowSolver(backend=backend, hyperparams=hyperparams)
 
-    torch_solver.preprocess(topo_vect, prod_p, prod_v, load_p, load_q, Ybus, Sbus, PV_nodes)
+    torch_solver.preprocess(
+        topo_vect, prod_p, prod_v, load_p, load_q, Ybus, Sbus, PV_nodes
+    )
     torch_solver.init_v("ones")
 
-    V_init_solver = torch_solver.V  # redundant input as we use the angle/magnitude representation
+    V_init_solver = (
+        torch_solver.V
+    )  # redundant input as we use the angle/magnitude representation
 
     # inputs in solver form
     Va_solver = np.angle(V_init_solver)

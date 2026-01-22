@@ -9,16 +9,29 @@ from dpf.scripts.ex4_data_generation import make_grid2op_env, get_loads_gens
 from dpf.solvers.solver_torch import TorchPowerFlowSolver
 
 
-def objective(trial, inputs, targets, env, backend, fixed_optimizer_name=None, fixed_scheduler_strat=None,
-              max_iter_fixed=None, fixed_loss_fn=None):
+def objective(
+    trial,
+    inputs,
+    targets,
+    env,
+    backend,
+    fixed_optimizer_name=None,
+    fixed_scheduler_strat=None,
+    max_iter_fixed=None,
+    fixed_loss_fn=None,
+):
     if fixed_optimizer_name is not None:
         optimizer_name = fixed_optimizer_name
     else:
-        optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
+        optimizer_name = trial.suggest_categorical(
+            "optimizer", ["Adam", "RMSprop", "SGD"]
+        )
     if fixed_scheduler_strat is not None:
         scheduler_strat = fixed_scheduler_strat
     else:
-        scheduler_strat = trial.suggest_categorical("scheduler", ["constant", "StepLR", "ReduceLROnPlateau"])
+        scheduler_strat = trial.suggest_categorical(
+            "scheduler", ["constant", "StepLR", "ReduceLROnPlateau"]
+        )
     if max_iter_fixed is not None:
         max_iter = max_iter_fixed
     else:
@@ -26,17 +39,36 @@ def objective(trial, inputs, targets, env, backend, fixed_optimizer_name=None, f
     if fixed_loss_fn is not None:
         loss_fn_name = fixed_loss_fn
     else:
-        loss_fn_name = trial.suggest_categorical("loss_fn", ["L1", "L1Sum", "MSE", "Huber"])
+        loss_fn_name = trial.suggest_categorical(
+            "loss_fn", ["L1", "L1Sum", "MSE", "Huber"]
+        )
 
-    prod_p, prod_v, load_p, load_q, line_status, topo_vect, Ybus, Sbus, PV_nodes, slack = inputs
-    a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex = targets  # maybe use these for evaluation as well?
+    (
+        prod_p,
+        prod_v,
+        load_p,
+        load_q,
+        line_status,
+        topo_vect,
+        Ybus,
+        Sbus,
+        PV_nodes,
+        slack,
+    ) = inputs
+    a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex = (
+        targets  # maybe use these for evaluation as well?
+    )
 
     optimizer_class = None
     optimizer_kwargs = None
     if optimizer_name == "Adam":
         lr = trial.suggest_float("lr", 1e-6, 1e-1)  # learning rate
-        beta_one = trial.suggest_float("beta1", .5, 0.999)  # exponential decay rate for momentum
-        beta_two = trial.suggest_float("beta2", 0.8, 0.9999999)  # exponential decay rate for velocity
+        beta_one = trial.suggest_float(
+            "beta1", 0.5, 0.999
+        )  # exponential decay rate for momentum
+        beta_two = trial.suggest_float(
+            "beta2", 0.8, 0.9999999
+        )  # exponential decay rate for velocity
         optimizer_class = torch.optim.Adam
         optimizer_kwargs = {"lr": lr, "betas": (beta_one, beta_two)}
     if optimizer_name == "SGD":
@@ -45,14 +77,24 @@ def objective(trial, inputs, targets, env, backend, fixed_optimizer_name=None, f
         dampening = trial.suggest_float("dampening", 0.0, 0.99)
         weight_decay = trial.suggest_float("weight_decay", 0.0, 0.99)
         optimizer_class = torch.optim.SGD
-        optimizer_kwargs = {"lr": lr, "momentum": momentum, "dampening": dampening, "weight_decay": weight_decay}
+        optimizer_kwargs = {
+            "lr": lr,
+            "momentum": momentum,
+            "dampening": dampening,
+            "weight_decay": weight_decay,
+        }
     if optimizer_name == "RMSprop":
         lr = trial.suggest_float("lr", 1e-6, 1e-1)
         alpha = trial.suggest_float("alpha", 0.1, 0.999)
         weight_decay = trial.suggest_float("weight_decay", 0.0, 0.999)
         momentum = trial.suggest_float("momentum", 0.0, 0.999)
         optimizer_class = torch.optim.RMSprop
-        optimizer_kwargs = {"lr": lr, "alpha": alpha, "weight_decay": weight_decay, "momentum": momentum}
+        optimizer_kwargs = {
+            "lr": lr,
+            "alpha": alpha,
+            "weight_decay": weight_decay,
+            "momentum": momentum,
+        }
 
     scheduler_class = None
     scheduler_kwargs = None
@@ -72,11 +114,19 @@ def objective(trial, inputs, targets, env, backend, fixed_optimizer_name=None, f
         threshold = trial.suggest_float("threshold", 1e-6, 1e-1)
         cooldown = trial.suggest_int("cooldown", 0, 100)
         scheduler_class = torch.optim.lr_scheduler.ReduceLROnPlateau
-        scheduler_kwargs = {"factor": factor, "patience": patience, "threshold_mode": threshold_mode,
-                            "threshold": threshold, "cooldown": cooldown}
+        scheduler_kwargs = {
+            "factor": factor,
+            "patience": patience,
+            "threshold_mode": threshold_mode,
+            "threshold": threshold,
+            "cooldown": cooldown,
+        }
     if scheduler_strat == "MultiStepLR":
         num_milestones = trial.suggest_int("num_milestones", 1, 20)
-        milestones = sorted(trial.suggest_int("milestone_" + str(i), 1, 300) for i in range(num_milestones))
+        milestones = sorted(
+            trial.suggest_int("milestone_" + str(i), 1, 300)
+            for i in range(num_milestones)
+        )
         gamma = trial.suggest_float("gamma", 0.0001, 0.99)
         scheduler_class = torch.optim.lr_scheduler.MultiStepLR
         scheduler_kwargs = {"milestones": milestones, "gamma": gamma}
@@ -99,10 +149,10 @@ def objective(trial, inputs, targets, env, backend, fixed_optimizer_name=None, f
         "optimizer_kwargs": optimizer_kwargs,
         "scheduler_class": scheduler_class,
         "scheduler_kwargs": scheduler_kwargs,
-        #"loss_fn": torch.nn.MSELoss(),
+        # "loss_fn": torch.nn.MSELoss(),
         "loss_fn": loss_fn,
         "max_iter": max_iter,
-        "tol": 1e-8
+        "tol": 1e-8,
     }
 
     # run experiment:
@@ -117,12 +167,25 @@ def objective(trial, inputs, targets, env, backend, fixed_optimizer_name=None, f
     return loss
 
 
-def run_experiment(case_name, optimizer_strat, scheduler_strat, max_iter, loss_fun, n_trials):
+def run_experiment(
+    case_name, optimizer_strat, scheduler_strat, max_iter, loss_fun, n_trials
+):
     sample = 2
     # case_name = "case_illinois200"
     custom_grid_dataset = CustomGridDataset(env_name=case_name)
     inputs, targets = custom_grid_dataset.get_sample(sample)
-    prod_p, prod_v, load_p, load_q, line_status, topo_vect, Ybus, Sbus, PV_nodes, slack = inputs
+    (
+        prod_p,
+        prod_v,
+        load_p,
+        load_q,
+        line_status,
+        topo_vect,
+        Ybus,
+        Sbus,
+        PV_nodes,
+        slack,
+    ) = inputs
     a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex = targets
 
     # create grid2op env and the backend
@@ -145,20 +208,19 @@ def run_experiment(case_name, optimizer_strat, scheduler_strat, max_iter, loss_f
     prng = np.random.default_rng(42)
 
     # simulate the data
-    load_p_, load_q_, gen_p_, sgen_p_ = get_loads_gens(load_p_init, load_q_init, gen_p_init, sgen_p_init, prng)
+    load_p_, load_q_, gen_p_, sgen_p_ = get_loads_gens(
+        load_p_init, load_q_init, gen_p_init, sgen_p_init, prng
+    )
     nb_ts = gen_p_.shape[0]
     # add slack !
     slack_gens = np.zeros((nb_ts, case.ext_grid.shape[0]))
     if "res_ext_grid" in case:
-        slack_gens += np.tile(case.res_ext_grid["p_mw"].values.reshape(1, -1), (nb_ts, 1))
+        slack_gens += np.tile(
+            case.res_ext_grid["p_mw"].values.reshape(1, -1), (nb_ts, 1)
+        )
     gen_p_g2op = np.concatenate((gen_p_, slack_gens), axis=1)
 
-    env = make_grid2op_env(case,
-                           case_name,
-                           load_p_,
-                           load_q_,
-                           gen_p_g2op,
-                           sgen_p_)
+    env = make_grid2op_env(case, case_name, load_p_, load_q_, gen_p_g2op, sgen_p_)
 
     backend = env.backend
 
@@ -166,14 +228,26 @@ def run_experiment(case_name, optimizer_strat, scheduler_strat, max_iter, loss_f
 
     study = optuna.create_study()
     study.optimize(
-        lambda trial: objective(trial, inputs, targets, env, backend, optimizer_strat, scheduler_strat, max_iter,
-                                loss_fun),
-        n_trials=n_trials)
+        lambda trial: objective(
+            trial,
+            inputs,
+            targets,
+            env,
+            backend,
+            optimizer_strat,
+            scheduler_strat,
+            max_iter,
+            loss_fun,
+        ),
+        n_trials=n_trials,
+    )
     print(f"Best params is {study.best_params} with value {study.best_value}")
 
     df = study.trials_dataframe(attrs=("params", "value", "state"))
-    df.to_csv(f"out/temp/ex10_trials_{case_name}_{optimizer_strat}_{scheduler_strat}.csv",
-              index=False)
+    df.to_csv(
+        f"out/temp/ex10_trials_{case_name}_{optimizer_strat}_{scheduler_strat}.csv",
+        index=False,
+    )
 
 
 def main():
@@ -181,19 +255,36 @@ def main():
 
     # go through all combinations
     # optimizer_strat = "Adam"
-    #scheduler_strat = "ReduceLROnPlateau"
+    # scheduler_strat = "ReduceLROnPlateau"
 
     optimizer_strat = "Adam"
     scheduler_strat = "constant"
     num_iter = 10000
     loss_fn = "MSE"
 
-    case_names = ["case118", "case_illinois200", "case300", "case1354pegase", "case1888rte",
-                  "case2869pegase", "case3120sp", "case6495rte", "case6515rte", "case9241pegase"]
-    #case_names = ["case1888rte", "case2869pegase", "case3120sp", "case6495rte", "case6515rte", "case9241pegase"]
+    case_names = [
+        "case118",
+        "case_illinois200",
+        "case300",
+        "case1354pegase",
+        "case1888rte",
+        "case2869pegase",
+        "case3120sp",
+        "case6495rte",
+        "case6515rte",
+        "case9241pegase",
+    ]
+    # case_names = ["case1888rte", "case2869pegase", "case3120sp", "case6495rte", "case6515rte", "case9241pegase"]
 
     for case_name in case_names:
-        run_experiment(case_name, optimizer_strat, scheduler_strat, num_iter, loss_fun=loss_fn, n_trials=n_trials, )
+        run_experiment(
+            case_name,
+            optimizer_strat,
+            scheduler_strat,
+            num_iter,
+            loss_fun=loss_fn,
+            n_trials=n_trials,
+        )
 
     ##  for 1000 iterations
 

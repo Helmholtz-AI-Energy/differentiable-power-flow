@@ -59,7 +59,12 @@ def get_k_random_values_duplicated(k, mean=0, std=0, seed=0):
 
     return random_list
 
+
 class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
+    """
+    Differentiable Power Flow solver that is adapted to process time-series data in a batched manner.
+    """
+
     def __init__(self, backend, hyperparams=None, continuation_hyperparams=None):
         super().__init__(backend)
 
@@ -91,11 +96,17 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
                 "optimizer_class": torch.optim.Adam,
                 "optimizer_kwargs": {"lr": 0.003377, "betas": (0.979681, 0.963442)},
                 "scheduler_class": torch.optim.lr_scheduler.ReduceLROnPlateau,
-                "scheduler_kwargs": {"factor": 0.547191, "patience": 41, "threshold_mode": "rel",
-                                     "threshold": 0.067321, "cooldown": 97},
+                "scheduler_kwargs": {
+                    "factor": 0.547191,
+                    "patience": 41,
+                    "threshold_mode": "rel",
+                    "threshold": 0.067321,
+                    "cooldown": 97,
+                },
                 "loss_fn": torch.nn.MSELoss(),
                 "max_iter": 1000,
-                "tol": 1e-8}
+                "tol": 1e-8,
+            }
         else:
             self.hyperparams = hyperparams
         self.continuation_hyperparams = continuation_hyperparams
@@ -104,11 +115,26 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
         if strategy == "ones":
             # self.V = np.array(np.ones(self.nb_active_buses, dtype=np.complex128) * self.init_vm_pu_solver)
             self.V = np.array(
-                np.ones(self.batch_size * self.nb_active_buses, dtype=np.complex128) * self.init_vm_pu_solver)
+                np.ones(self.batch_size * self.nb_active_buses, dtype=np.complex128)
+                * self.init_vm_pu_solver
+            )
         pass
 
-    def preprocess(self, topo_vect, prods_p, prods_v, loads_p, loads_q, Ybus, Sbuses, pv, line_status=None):
-        self.fill_backend_with_data(topo_vect, prods_p[0], prods_v[0], loads_p[0], loads_q[0])
+    def preprocess(
+        self,
+        topo_vect,
+        prods_p,
+        prods_v,
+        loads_p,
+        loads_q,
+        Ybus,
+        Sbuses,
+        pv,
+        line_status=None,
+    ):
+        self.fill_backend_with_data(
+            topo_vect, prods_p[0], prods_v[0], loads_p[0], loads_q[0]
+        )
         if line_status is not None:
             self.line_status = line_status
         self.fetch_grid_data()
@@ -118,13 +144,17 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
         self.fill_pv_pq(pv)
 
         assert Sbuses.shape[0] == self.batch_size
-        Sbuses_transformed = np.ndarray((self.batch_size * self.nb_active_buses), dtype=np.complex128)
+        Sbuses_transformed = np.ndarray(
+            (self.batch_size * self.nb_active_buses), dtype=np.complex128
+        )
 
         for i in range(self.batch_size):
             # do indexing for current Sbus and store it in Sbuses_transformed
 
             # TODO is this line really necessary? probably not..
-            self.fill_backend_with_data(topo_vect, prods_p[i], prods_v[i], loads_p[i], loads_q[i])
+            self.fill_backend_with_data(
+                topo_vect, prods_p[i], prods_v[i], loads_p[i], loads_q[i]
+            )
             current_Sbus = Sbuses[i]
             res = np.ndarray(self.nb_active_buses, dtype=np.complex128)
             for j in range(self.nb_active_buses):
@@ -132,7 +162,9 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
                 res[j] = current_Sbus[global_bus_id]
             current_Sbus_solver = res
 
-            Sbuses_transformed[i * self.nb_active_buses: (i + 1) * self.nb_active_buses] = current_Sbus_solver
+            Sbuses_transformed[
+                i * self.nb_active_buses : (i + 1) * self.nb_active_buses
+            ] = current_Sbus_solver
 
         self.Sbus_solver_batched = Sbuses_transformed
 
@@ -146,10 +178,13 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
         self.use_gpu = use_gpu
         self.device = device
 
-
     def reconstruct_Va(self, Va_learnable):
         Va_new = self.Va_fixed_batched.clone()
-        Va_new[torch.concatenate([self.pv_nodes_torch_batched, self.pq_nodes_torch_batched])] = Va_learnable
+        Va_new[
+            torch.concatenate(
+                [self.pv_nodes_torch_batched, self.pq_nodes_torch_batched]
+            )
+        ] = Va_learnable
         return Va_new
 
     def reconstruct_Vm(self, Vm_learnable):
@@ -159,8 +194,18 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
 
     def prepare_fixed_inputs(self):
         # convert parameters to torch
-        pvs = np.concatenate([self.pv_nodes_solver + i * self.nb_active_buses for i in range(self.batch_size)])
-        pqs = np.concatenate([self.pq_nodes_solver + i * self.nb_active_buses for i in range(self.batch_size)])
+        pvs = np.concatenate(
+            [
+                self.pv_nodes_solver + i * self.nb_active_buses
+                for i in range(self.batch_size)
+            ]
+        )
+        pqs = np.concatenate(
+            [
+                self.pq_nodes_solver + i * self.nb_active_buses
+                for i in range(self.batch_size)
+            ]
+        )
 
         self.pv_nodes_torch_batched = torch.tensor(pvs, requires_grad=False)
         self.pq_nodes_torch_batched = torch.tensor(pqs, requires_grad=False)
@@ -191,7 +236,9 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
             if i == 0:
                 block_crow_indices.append(crow_indices)
             else:
-                block_crow_indices.append(crow_indices[1:] + i * nnz)  # 0 2 4 --> 0 2 4 6 8
+                block_crow_indices.append(
+                    crow_indices[1:] + i * nnz
+                )  # 0 2 4 --> 0 2 4 6 8
             block_col_indices.append(col_indices + i * self.nb_active_buses)
             block_values.append(values)
 
@@ -199,20 +246,32 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
         block_crow_indices = torch.cat(block_crow_indices)
         block_col_indices = torch.cat(block_col_indices)
 
-        self.Ybus_torch_batched = torch.sparse_csr_tensor(block_crow_indices, block_col_indices, block_values,
-                                                          block_shape, requires_grad=False, device=self.device)
+        self.Ybus_torch_batched = torch.sparse_csr_tensor(
+            block_crow_indices,
+            block_col_indices,
+            block_values,
+            block_shape,
+            requires_grad=False,
+            device=self.device,
+        )
         # sanity check
-        #dense_ybus_batched = self.Ybus_torch_batched.to_dense()
-        #assert torch.allclose(dense_ybus_batched[0:self.nb_active_buses, 0:self.nb_active_buses] ,
+        # dense_ybus_batched = self.Ybus_torch_batched.to_dense()
+        # assert torch.allclose(dense_ybus_batched[0:self.nb_active_buses, 0:self.nb_active_buses] ,
         #                     dense_ybus_batched[self.nb_active_buses:2*self.nb_active_buses, self.nb_active_buses:2*self.nb_active_buses])
 
-        self.Va_fixed_batched = torch.tensor(np.angle(self.V), requires_grad=False, device=self.device)  # works for batched version as well
-        self.Vm_fixed_batched = torch.tensor(np.abs(self.V), requires_grad=False, device=self.device)  #
+        self.Va_fixed_batched = torch.tensor(
+            np.angle(self.V), requires_grad=False, device=self.device
+        )  # works for batched version as well
+        self.Vm_fixed_batched = torch.tensor(
+            np.abs(self.V), requires_grad=False, device=self.device
+        )  #
 
     def run_pf(self):
         pass
 
-    def run_time_series_batched(self, evaluate_losses=False):  # prod_p, prod_v, load_p and load_q not used
+    def run_time_series_batched(
+        self, evaluate_losses=False
+    ):  # prod_p, prod_v, load_p and load_q not used
         self.prepare_fixed_inputs()
         loss_fn = self.hyperparams["loss_fn"]
         max_iter = self.hyperparams["max_iter"]
@@ -224,13 +283,25 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
         Va_ = np.angle(self.V)  # elementwise
         Vm_ = np.abs(self.V)  # elementwise
         self.Va_learnable = torch.tensor(
-            Va_[torch.concatenate([self.pv_nodes_torch_batched, self.pq_nodes_torch_batched])],
-            requires_grad=True, device=self.device)
+            Va_[
+                torch.concatenate(
+                    [self.pv_nodes_torch_batched, self.pq_nodes_torch_batched]
+                )
+            ],
+            requires_grad=True,
+            device=self.device,
+        )
 
-        self.Vm_learnable = torch.tensor(Vm_[self.pq_nodes_torch_batched], requires_grad=True, device=self.device)
+        self.Vm_learnable = torch.tensor(
+            Vm_[self.pq_nodes_torch_batched], requires_grad=True, device=self.device
+        )
 
-        Sbus_real_torch = torch.tensor(np.real(self.Sbus_solver_batched), requires_grad=False)
-        Sbus_imag_torch = torch.tensor(np.imag(self.Sbus_solver_batched), requires_grad=False)
+        Sbus_real_torch = torch.tensor(
+            np.real(self.Sbus_solver_batched), requires_grad=False
+        )
+        Sbus_imag_torch = torch.tensor(
+            np.imag(self.Sbus_solver_batched), requires_grad=False
+        )
         self.Sbus_torch_batched = torch.complex(Sbus_real_torch, Sbus_imag_torch)
 
         # transfer tensors to gpu
@@ -239,10 +310,14 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
 
         self.params = [self.Vm_learnable, self.Va_learnable]
         optimizer_kwargs = self.hyperparams["optimizer_kwargs"]
-        self.optimizer = self.hyperparams["optimizer_class"](self.params, **optimizer_kwargs)
+        self.optimizer = self.hyperparams["optimizer_class"](
+            self.params, **optimizer_kwargs
+        )
 
         scheduler_kwargs = self.hyperparams["scheduler_kwargs"]
-        self.scheduler = self.hyperparams["scheduler_class"](self.optimizer, **scheduler_kwargs)
+        self.scheduler = self.hyperparams["scheduler_class"](
+            self.optimizer, **scheduler_kwargs
+        )
 
         individual_losses = []
         if evaluate_losses:
@@ -261,18 +336,34 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
             # forward pass
             self.Ybus_conj_torch_batched = torch.conj(self.Ybus_torch_batched)
             V_conj_torch_batched = torch.conj(V_torch_batched)
-            S_calc_torch_batched = V_torch_batched * torch.matmul(self.Ybus_conj_torch_batched, V_conj_torch_batched)
+            S_calc_torch_batched = V_torch_batched * torch.matmul(
+                self.Ybus_conj_torch_batched, V_conj_torch_batched
+            )
 
             # loss function
             S_calc_real_relevant_parts = S_calc_torch_batched.real[
-                torch.concatenate([self.pv_nodes_torch_batched, self.pq_nodes_torch_batched])]
-            S_calc_imag_relevant_parts = S_calc_torch_batched.imag[self.pq_nodes_torch_batched]
-            out = torch.concatenate([S_calc_real_relevant_parts, S_calc_imag_relevant_parts])
+                torch.concatenate(
+                    [self.pv_nodes_torch_batched, self.pq_nodes_torch_batched]
+                )
+            ]
+            S_calc_imag_relevant_parts = S_calc_torch_batched.imag[
+                self.pq_nodes_torch_batched
+            ]
+            out = torch.concatenate(
+                [S_calc_real_relevant_parts, S_calc_imag_relevant_parts]
+            )
             # target
             Sbus_real_relevant_parts = self.Sbus_torch_batched.real[
-                torch.concatenate([self.pv_nodes_torch_batched, self.pq_nodes_torch_batched])]
-            Sbus_imag_relevant_parts = self.Sbus_torch_batched.imag[self.pq_nodes_torch_batched]
-            target = torch.concatenate([Sbus_real_relevant_parts, Sbus_imag_relevant_parts])
+                torch.concatenate(
+                    [self.pv_nodes_torch_batched, self.pq_nodes_torch_batched]
+                )
+            ]
+            Sbus_imag_relevant_parts = self.Sbus_torch_batched.imag[
+                self.pq_nodes_torch_batched
+            ]
+            target = torch.concatenate(
+                [Sbus_real_relevant_parts, Sbus_imag_relevant_parts]
+            )
 
             loss = loss_fn(out, target)
             # TODO alternative: maybe train using shape (batchsize, num_active_buses) and really do independent training
@@ -281,8 +372,8 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
             if evaluate_losses:
                 chunk_size = out.shape[0] // self.batch_size
                 for batch in range(self.batch_size):
-                    local_out = out[batch * chunk_size:(batch + 1) * chunk_size]
-                    local_target = target[batch * chunk_size:(batch + 1) * chunk_size]
+                    local_out = out[batch * chunk_size : (batch + 1) * chunk_size]
+                    local_target = target[batch * chunk_size : (batch + 1) * chunk_size]
 
                     local_loss = loss_fn(local_out, local_target)
                     individual_losses[batch, i] = local_loss.item()
@@ -294,25 +385,35 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
 
                 self.optimizer.step()
 
-                if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                if isinstance(
+                    self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
+                ):
                     self.scheduler.step(loss.item())
                 else:
-                    if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    if isinstance(
+                        self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
+                    ):
                         self.scheduler.step(loss.item())
                     else:
                         self.scheduler.step()
         return np.array(losses), times, individual_losses
 
-    def run_pf_super_grid(self, evaluate_losses, strategy, strategy_amount_param):  # prod_p, prod_v, load_p and load_q not used
+    def run_pf_super_grid(
+        self, evaluate_losses, strategy, strategy_amount_param
+    ):  # prod_p, prod_v, load_p and load_q not used
 
         if strategy == "no_connections":
             # leave Ybus in a block diagonal structure without any connections
             pass
         elif strategy == "total_random":
             # adds batch_size * strategy_amount_param many random connections
-            new_indices = get_k_random_zero_entries_without_diagonal(self.Ybus_solver, strategy_amount_param * self.batch_size)
+            new_indices = get_k_random_zero_entries_without_diagonal(
+                self.Ybus_solver, strategy_amount_param * self.batch_size
+            )
             # [(i1,j1), (j1,i1), (i2,j2), (j2,i2), ...]
-            new_values = get_k_random_values_duplicated(strategy_amount_param * self.batch_size)
+            new_values = get_k_random_values_duplicated(
+                strategy_amount_param * self.batch_size
+            )
             # TODO new_values is currently hardcoded
 
             rows, cols = zip(*new_indices)
@@ -341,13 +442,25 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
         Va_ = np.angle(self.V)  # elementwise
         Vm_ = np.abs(self.V)  # elementwise
         self.Va_learnable = torch.tensor(
-            Va_[torch.concatenate([self.pv_nodes_torch_batched, self.pq_nodes_torch_batched])],
-            requires_grad=True, device=self.device)
+            Va_[
+                torch.concatenate(
+                    [self.pv_nodes_torch_batched, self.pq_nodes_torch_batched]
+                )
+            ],
+            requires_grad=True,
+            device=self.device,
+        )
 
-        self.Vm_learnable = torch.tensor(Vm_[self.pq_nodes_torch_batched], requires_grad=True, device=self.device)
+        self.Vm_learnable = torch.tensor(
+            Vm_[self.pq_nodes_torch_batched], requires_grad=True, device=self.device
+        )
 
-        Sbus_real_torch = torch.tensor(np.real(self.Sbus_solver_batched), requires_grad=False)
-        Sbus_imag_torch = torch.tensor(np.imag(self.Sbus_solver_batched), requires_grad=False)
+        Sbus_real_torch = torch.tensor(
+            np.real(self.Sbus_solver_batched), requires_grad=False
+        )
+        Sbus_imag_torch = torch.tensor(
+            np.imag(self.Sbus_solver_batched), requires_grad=False
+        )
         self.Sbus_torch_batched = torch.complex(Sbus_real_torch, Sbus_imag_torch)
 
         # transfer tensors to gpu
@@ -356,10 +469,14 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
 
         self.params = [self.Vm_learnable, self.Va_learnable]
         optimizer_kwargs = self.hyperparams["optimizer_kwargs"]
-        self.optimizer = self.hyperparams["optimizer_class"](self.params, **optimizer_kwargs)
+        self.optimizer = self.hyperparams["optimizer_class"](
+            self.params, **optimizer_kwargs
+        )
 
         scheduler_kwargs = self.hyperparams["scheduler_kwargs"]
-        self.scheduler = self.hyperparams["scheduler_class"](self.optimizer, **scheduler_kwargs)
+        self.scheduler = self.hyperparams["scheduler_class"](
+            self.optimizer, **scheduler_kwargs
+        )
 
         individual_losses = []
         if evaluate_losses:
@@ -378,18 +495,34 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
             # forward pass
             self.Ybus_conj_torch_batched = torch.conj(self.Ybus_torch_batched)
             V_conj_torch_batched = torch.conj(V_torch_batched)
-            S_calc_torch_batched = V_torch_batched * torch.matmul(self.Ybus_conj_torch_batched, V_conj_torch_batched)
+            S_calc_torch_batched = V_torch_batched * torch.matmul(
+                self.Ybus_conj_torch_batched, V_conj_torch_batched
+            )
 
             # loss function
             S_calc_real_relevant_parts = S_calc_torch_batched.real[
-                torch.concatenate([self.pv_nodes_torch_batched, self.pq_nodes_torch_batched])]
-            S_calc_imag_relevant_parts = S_calc_torch_batched.imag[self.pq_nodes_torch_batched]
-            out = torch.concatenate([S_calc_real_relevant_parts, S_calc_imag_relevant_parts])
+                torch.concatenate(
+                    [self.pv_nodes_torch_batched, self.pq_nodes_torch_batched]
+                )
+            ]
+            S_calc_imag_relevant_parts = S_calc_torch_batched.imag[
+                self.pq_nodes_torch_batched
+            ]
+            out = torch.concatenate(
+                [S_calc_real_relevant_parts, S_calc_imag_relevant_parts]
+            )
             # target
             Sbus_real_relevant_parts = self.Sbus_torch_batched.real[
-                torch.concatenate([self.pv_nodes_torch_batched, self.pq_nodes_torch_batched])]
-            Sbus_imag_relevant_parts = self.Sbus_torch_batched.imag[self.pq_nodes_torch_batched]
-            target = torch.concatenate([Sbus_real_relevant_parts, Sbus_imag_relevant_parts])
+                torch.concatenate(
+                    [self.pv_nodes_torch_batched, self.pq_nodes_torch_batched]
+                )
+            ]
+            Sbus_imag_relevant_parts = self.Sbus_torch_batched.imag[
+                self.pq_nodes_torch_batched
+            ]
+            target = torch.concatenate(
+                [Sbus_real_relevant_parts, Sbus_imag_relevant_parts]
+            )
 
             loss = loss_fn(out, target)
             # TODO alternative: maybe train using shape (batchsize, num_active_buses) and really do independent training
@@ -398,8 +531,8 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
             if evaluate_losses:
                 chunk_size = out.shape[0] // self.batch_size
                 for batch in range(self.batch_size):
-                    local_out = out[batch * chunk_size:(batch + 1) * chunk_size]
-                    local_target = target[batch * chunk_size:(batch + 1) * chunk_size]
+                    local_out = out[batch * chunk_size : (batch + 1) * chunk_size]
+                    local_target = target[batch * chunk_size : (batch + 1) * chunk_size]
 
                     local_loss = loss_fn(local_out, local_target)
                     individual_losses[batch, i] = local_loss.item()
@@ -411,10 +544,14 @@ class TimeSeriesPowerFlowSolverBatched(AbstractPowerFlowSolver):
 
                 self.optimizer.step()
 
-                if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                if isinstance(
+                    self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
+                ):
                     self.scheduler.step(loss.item())
                 else:
-                    if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    if isinstance(
+                        self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
+                    ):
                         self.scheduler.step(loss.item())
                     else:
                         self.scheduler.step()

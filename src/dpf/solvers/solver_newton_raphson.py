@@ -1,11 +1,22 @@
 import numpy as np
 from scipy.sparse import hstack, vstack
-from scipy.sparse.linalg import spsolve, lsqr, lsmr  # for the linear equation system solved in newton raphson
+from scipy.sparse.linalg import (
+    spsolve,
+    lsqr,
+    lsmr,
+)  # for the linear equation system solved in newton raphson
 
 from abstract_powerflow_solver import AbstractPowerFlowSolver
 
 
 def calculate_mismatch(Sbus, V, Ybus):
+    """
+
+    :param Sbus: Power injection vector
+    :param V: Voltage vector
+    :param Ybus: Admittance matrix
+    :return: mismatch Scalc-Sbus
+    """
     # computes S_calc = V * np.conj(I) = V * np.conj(Ybus * V)
     tmp = Ybus * V
     tmp = np.conjugate(tmp)
@@ -14,19 +25,27 @@ def calculate_mismatch(Sbus, V, Ybus):
 
 
 def check_convergence(mismatch, pv_nodes, pq_nodes, tolerance_pu):
+    """Checks convergence by calculating the infinity norm from the mismatch vector."""
     # F consists of the active power mismatch of pv-nodes and active+reactive power mismatches of pq-nodes
     # so we take the real part for the active power and the imaginary part for the reactive power
     real_ = np.real(mismatch)
     imag_ = np.imag(mismatch)
     # F = np.concatenate([real_[slack_id_], real_[pv_nodes_], real_[pq_nodes_], imag_[pq_nodes_]])
-    F = np.concatenate([real_[pv_nodes], real_[pq_nodes],
-                        imag_[pq_nodes]])  # slack is the first variable in BaseAlgo::evaluate_Fx for multiple slacks
+    F = np.concatenate(
+        [real_[pv_nodes], real_[pq_nodes], imag_[pq_nodes]]
+    )  # slack is the first variable in BaseAlgo::evaluate_Fx for multiple slacks
     norm_inf = np.linalg.norm(F, np.inf)
     converged = norm_inf < tolerance_pu
     return converged, F
 
 
 def calculate_partial_derivatives(V_, Ybus_):
+    """
+    Calculates the partial derivatives used in the Jacobian matrix.
+    :param V_: Voltage vector in solver form
+    :param Ybus_: Admittance matrix in solver form
+    :return: Partial derivatives dS_dVm and dS_dVa (magnitude and angle)
+    """
     Vnorm = V_ / np.abs(V_)  # each complex vector has length one in Vnorm
     Ibus = Ybus_ * V_  # Ohms Law in Matrix Form, U=RI <-> I = U/R = U*Y
     conjIbus_Vnorm = np.conjugate(Ibus) * Vnorm  # I_conj * V_norm elementwise
@@ -45,7 +64,9 @@ def calculate_partial_derivatives(V_, Ybus_):
         for row_id in non_zero_row_indices:  # get only non-zero entries here
             el_ybus = Ybus_[row_id, col_id]
 
-            dS_dVm_el = np.conjugate(el_ybus * Vnorm[col_id]) * V_[row_id]  # V_i Ybus_ij* (V_j*/|V_j|)
+            dS_dVm_el = (
+                np.conjugate(el_ybus * Vnorm[col_id]) * V_[row_id]
+            )  # V_i Ybus_ij* (V_j*/|V_j|)
             dS_dVa_el = el_ybus * V_[col_id]  # ...
 
             if col_id == row_id:
@@ -54,7 +75,9 @@ def calculate_partial_derivatives(V_, Ybus_):
 
             my_i = 0 + 1j
             tmp_loop = my_i * V_[row_id]
-            dS_dVa_el = np.conjugate(-dS_dVa_el) * tmp_loop  # ... -(Ybus_ij V_j)^* i V_i
+            dS_dVa_el = (
+                np.conjugate(-dS_dVa_el) * tmp_loop
+            )  # ... -(Ybus_ij V_j)^* i V_i
 
             dS_dVm_[row_id, col_id] = dS_dVm_el
             dS_dVa_[row_id, col_id] = dS_dVa_el
@@ -63,6 +86,7 @@ def calculate_partial_derivatives(V_, Ybus_):
 
 
 def calculate_jacobian(V_, Ybus_, pvpq, pq_nodes_):
+    """Calculates the Jacobian matrix similar to the c++ implementation in LightSim2Grid."""
     # See BaseNRAlgo<LinearSolver>::_dSbus_dV for jacobian calculation in file BaseNRAlgo.tpp
 
     dS_dVm_, dS_dVa_ = calculate_partial_derivatives(V_, Ybus_)
@@ -86,8 +110,9 @@ def calculate_jacobian(V_, Ybus_, pvpq, pq_nodes_):
     dS_dVm_r = np.real(dS_dVm_)
     dS_dVm_i = np.imag(dS_dVm_)
 
-    J11 = dS_dVa_r[np.ix_(pvpq.T,
-                          pvpq)]  # use np.ix_ to extract a submatrix with given indices (instead of fancy indexing)
+    J11 = dS_dVa_r[
+        np.ix_(pvpq.T, pvpq)
+    ]  # use np.ix_ to extract a submatrix with given indices (instead of fancy indexing)
     J12 = dS_dVm_r[np.ix_(pvpq.T, pq_nodes_)]
     J21 = dS_dVa_i[np.ix_(pq_nodes_.T, pvpq)]
     J22 = dS_dVm_i[np.ix_(pq_nodes_.T, pq_nodes_)]
@@ -98,6 +123,8 @@ def calculate_jacobian(V_, Ybus_, pvpq, pq_nodes_):
 
 
 class NRPowerFlowSolver(AbstractPowerFlowSolver):
+    """Python implementation of the Newton-Raphson power-flow solver. This is purely educational as the C++
+    implementation is faster."""
 
     def __init__(self, backend):
 
@@ -113,7 +140,7 @@ class NRPowerFlowSolver(AbstractPowerFlowSolver):
         pv_nodes_ = self.pv_nodes_solver
         pq_nodes_ = self.pq_nodes_solver
         max_iteration_ = self.max_iteration_solver
-        #max_iteration_ = 1
+        # max_iteration_ = 1
         tolerance_pu_ = self.tolerance_pu_solver
 
         # Goal: Compute voltage angles and magnitudes at each bus such that the mismatch is minimal.
@@ -136,14 +163,14 @@ class NRPowerFlowSolver(AbstractPowerFlowSolver):
         # check if done already by computing the mismatch
         mis = calculate_mismatch(Sbus_, V_, Ybus_)
         converged, F = check_convergence(mis, pv_nodes_, pq_nodes_, tolerance_pu_)
-        #print("converged before powerflow?: ", converged)
+        # print("converged before powerflow?: ", converged)
 
         for iteration in range(max_iteration_):
-            #print("iteration: ", iteration)
+            # print("iteration: ", iteration)
 
             J_ = calculate_jacobian(V_, Ybus_, pvpq, pq_nodes_)
             self.J = J_
-            #print("Jacobian calculated")
+            # print("Jacobian calculated")
 
             # TODO factorization, maybe ignore this for now
             # use Linear Solver to solve with mismatch information and get new V_a and V_m
@@ -151,19 +178,25 @@ class NRPowerFlowSolver(AbstractPowerFlowSolver):
             # solves by factorizing J = LU
 
             dx = spsolve(J_, F)  # here just use any sparse solver to see if it works
-            #dx, istop, itn, r1norm = lsqr(J_, F, iter_lim=10)[:4] # alternative: use least square method
-            #dx = lsmr(J_, F)[0]
-            #print("linear system solved")
-            #print("istop, itn, r1norm", istop, itn, r1norm)
+            # dx, istop, itn, r1norm = lsqr(J_, F, iter_lim=10)[:4] # alternative: use least square method
+            # dx = lsmr(J_, F)[0]
+            # print("linear system solved")
+            # print("istop, itn, r1norm", istop, itn, r1norm)
 
             # obtain V_a and V_m using the solution of the linear equation system
             if pv_nodes_.shape[0] > 0:
-                Va_[pv_nodes_] -= dx[:pv_nodes_.shape[0]]
+                Va_[pv_nodes_] -= dx[: pv_nodes_.shape[0]]
 
             if pq_nodes_.shape[0] > 0:
-                Va_[pq_nodes_] -= dx[pv_nodes_.shape[0]:pv_nodes_.shape[0] + pq_nodes_.shape[0]]
-                Vm_[pq_nodes_] -= dx[pq_nodes_.shape[0] + pv_nodes_.shape[0]:pq_nodes_.shape[0] + pv_nodes_.shape[0] +
-                                                                             pq_nodes_.shape[0]]
+                Va_[pq_nodes_] -= dx[
+                    pv_nodes_.shape[0] : pv_nodes_.shape[0] + pq_nodes_.shape[0]
+                ]
+                Vm_[pq_nodes_] -= dx[
+                    pq_nodes_.shape[0]
+                    + pv_nodes_.shape[0] : pq_nodes_.shape[0]
+                    + pv_nodes_.shape[0]
+                    + pq_nodes_.shape[0]
+                ]
 
             # Reconstruct V_ using Vm_ and Va_
 
@@ -178,7 +211,7 @@ class NRPowerFlowSolver(AbstractPowerFlowSolver):
             converged, F = check_convergence(mis, pv_nodes_, pq_nodes_, tolerance_pu_)
 
             if converged:
-                #print(f"convergence reached after {iteration} steps")
+                # print(f"convergence reached after {iteration} steps")
                 self.S_calc = V_ * np.conjugate(Ybus_ * V_)
                 break
 

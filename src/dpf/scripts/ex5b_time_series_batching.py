@@ -21,7 +21,6 @@ from dpf.dataset import SmallTimeSeriesDataset
 from dpf.solvers.solver_torch_batched import TimeSeriesPowerFlowSolverBatched
 
 
-
 def run_experiment(max_iter, batchsize, use_gpu, evaluate_losses):
     # load data
     ts_dataset = SmallTimeSeriesDataset()
@@ -42,7 +41,8 @@ def run_experiment(max_iter, batchsize, use_gpu, evaluate_losses):
         "scheduler_kwargs": {"step_size": 100, "gamma": 0.773},
         "loss_fn": torch.nn.MSELoss(),
         "max_iter": max_iter,
-        "tol": 1e-8}
+        "tol": 1e-8,
+    }
 
     print(Sbus.shape[0])  # 500
 
@@ -65,25 +65,25 @@ def run_experiment(max_iter, batchsize, use_gpu, evaluate_losses):
     # solver.prepare_fixed_inputs()
 
     print("run batched time series solver")
-    losses, times, individual_losses = solver.run_time_series_batched(evaluate_losses=evaluate_losses)
+    losses, times, individual_losses = solver.run_time_series_batched(
+        evaluate_losses=evaluate_losses
+    )
 
     # losses has shape [num_iterations]
     # and NOT: [batch_size, num_iterations] since the loss is an aggregation of all time steps simultaneously
 
     losses = list(losses)
 
-    results = {
-        "losses": losses,
-        "times": times,
-        "individual_losses": individual_losses
-    }
+    results = {"losses": losses, "times": times, "individual_losses": individual_losses}
 
     # print(losses)
     print(times[-1] - times[-2])
 
-
-    with open(f"out/temp/ex5b_time_series_{use_gpu}_{max_iter}_{batchsize}.pkl", "wb") as writeTOFile:
+    with open(
+        f"out/temp/ex5b_time_series_{use_gpu}_{max_iter}_{batchsize}.pkl", "wb"
+    ) as writeTOFile:
         pickle.dump(results, writeTOFile)
+
 
 def main():
     print("Starting experiment 5b")
@@ -96,7 +96,12 @@ def main():
     for batch_size in batch_sizes:
         for max_iter in max_iters:
             for use_gpu in use_gpus:
-                run_experiment(max_iter=max_iter, batchsize=batch_size, use_gpu=use_gpu, evaluate_losses=evaluate_grid_loss)
+                run_experiment(
+                    max_iter=max_iter,
+                    batchsize=batch_size,
+                    use_gpu=use_gpu,
+                    evaluate_losses=evaluate_grid_loss,
+                )
 
 
 if __name__ == "__main__":

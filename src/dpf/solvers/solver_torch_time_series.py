@@ -9,6 +9,11 @@ from dpf.solvers.abstract_powerflow_solver import AbstractPowerFlowSolver
 
 
 class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
+    """
+    Differentiable Power Flow solver for time series. Multiple time steps are processed one by one
+    (and not in a batched way).
+    """
+
     def __init__(self, backend, hyperparams=None, continuation_hyperparams=None):
         super().__init__(backend)
 
@@ -37,18 +42,26 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
                 "optimizer_class": torch.optim.Adam,
                 "optimizer_kwargs": {"lr": 0.003377, "betas": (0.979681, 0.963442)},
                 "scheduler_class": torch.optim.lr_scheduler.ReduceLROnPlateau,
-                "scheduler_kwargs": {"factor": 0.547191, "patience": 41, "threshold_mode": "rel",
-                                     "threshold": 0.067321, "cooldown": 97},
+                "scheduler_kwargs": {
+                    "factor": 0.547191,
+                    "patience": 41,
+                    "threshold_mode": "rel",
+                    "threshold": 0.067321,
+                    "cooldown": 97,
+                },
                 "loss_fn": torch.nn.MSELoss(),
                 "max_iter": 1000,
-                "tol": 1e-8}
+                "tol": 1e-8,
+            }
         else:
             self.hyperparams = hyperparams
         self.continuation_hyperparams = continuation_hyperparams
 
     def reconstruct_Va(self, Va_learnable):
         Va_new = self.Va_fixed.clone()
-        Va_new[torch.concatenate([self.pv_nodes_torch, self.pq_nodes_torch])] = Va_learnable
+        Va_new[torch.concatenate([self.pv_nodes_torch, self.pq_nodes_torch])] = (
+            Va_learnable
+        )
         return Va_new
 
     def reconstruct_Vm(self, Vm_learnable):
@@ -68,10 +81,12 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
         crow_indices = self.Ybus_solver.indptr
         col_indices = self.Ybus_solver.indices
         shape = self.Ybus_solver.shape
-        self.Ybus_torch = torch.sparse_csr_tensor(torch.tensor(crow_indices, dtype=torch.int64),
-                                                  torch.tensor(col_indices, dtype=torch.int64),
-                                                  torch.tensor(values, dtype=torch.complex128),
-                                                  shape)
+        self.Ybus_torch = torch.sparse_csr_tensor(
+            torch.tensor(crow_indices, dtype=torch.int64),
+            torch.tensor(col_indices, dtype=torch.int64),
+            torch.tensor(values, dtype=torch.complex128),
+            shape,
+        )
 
         self.Va_fixed = torch.tensor(np.angle(self.V), requires_grad=False)
         self.Vm_fixed = torch.tensor(np.abs(self.V), requires_grad=False)
@@ -79,8 +94,17 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
     def run_pf(self):
         pass
 
-    def run_time_series(self, prod_p, prod_v, load_p, load_q, Sbuses, freeze_start_params=False,
-                        do_only_first_time_step=False, report_metrics=False):
+    def run_time_series(
+        self,
+        prod_p,
+        prod_v,
+        load_p,
+        load_q,
+        Sbuses,
+        freeze_start_params=False,
+        do_only_first_time_step=False,
+        report_metrics=False,
+    ):
 
         # productions and loads are ignored for power-flows since Sbus contains the relevant information already
 
@@ -119,16 +143,24 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
                 Va_ = np.angle(self.V)
                 Vm_ = np.abs(self.V)
 
-                self.Va_learnable = torch.tensor(Va_[np.concatenate([self.pv_nodes_solver, self.pq_nodes_solver])],
-                                                 requires_grad=True)
-                self.Vm_learnable = torch.tensor(Vm_[self.pq_nodes_torch], requires_grad=True)
+                self.Va_learnable = torch.tensor(
+                    Va_[np.concatenate([self.pv_nodes_solver, self.pq_nodes_solver])],
+                    requires_grad=True,
+                )
+                self.Vm_learnable = torch.tensor(
+                    Vm_[self.pq_nodes_torch], requires_grad=True
+                )
                 self.params = [self.Vm_learnable, self.Va_learnable]
 
                 optimizer_kwargs = self.hyperparams["optimizer_kwargs"]
-                self.optimizer = self.hyperparams["optimizer_class"](self.params, **optimizer_kwargs)
+                self.optimizer = self.hyperparams["optimizer_class"](
+                    self.params, **optimizer_kwargs
+                )
 
                 scheduler_kwargs = self.hyperparams["scheduler_kwargs"]
-                self.scheduler = self.hyperparams["scheduler_class"](self.optimizer, **scheduler_kwargs)
+                self.scheduler = self.hyperparams["scheduler_class"](
+                    self.optimizer, **scheduler_kwargs
+                )
             else:
                 if freeze_start_params is False:
 
@@ -141,8 +173,12 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
                     for param_group in self.optimizer.param_groups:
                         # print(param_group['lr'])
                         # print(param_group['betas'])
-                        param_group['lr'] = self.continuation_hyperparams["optimizer_kwargs"]["lr"]
-                        param_group['betas'] = self.continuation_hyperparams["optimizer_kwargs"]["betas"]
+                        param_group["lr"] = self.continuation_hyperparams[
+                            "optimizer_kwargs"
+                        ]["lr"]
+                        param_group["betas"] = self.continuation_hyperparams[
+                            "optimizer_kwargs"
+                        ]["betas"]
 
                     # see https://pytorch.org/docs/stable/generated/torch.optim.Adam.html#torch.optim.Adam
                     # m_t and v_t (first moment and second moment) are stored as a state for Adam
@@ -150,21 +186,26 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
                     # For Adam only:
                     for param in self.optimizer.state.values():
                         # print(param)
-                        if 'exp_avg' in param:  # Reset momentum buffer
-                            param['exp_avg'].zero_()  # first moment
+                        if "exp_avg" in param:  # Reset momentum buffer
+                            param["exp_avg"].zero_()  # first moment
 
                         # TODO disable as well?
                         # if 'exp_avg_sq' in param: # Reset variance tracking
                         #   param['exp_avg_sq'].zero_()  # second moment
 
-
                     # scheduler
                     # do a completely new scheduler
                     scheduler_kwargs = self.continuation_hyperparams["scheduler_kwargs"]
-                    self.scheduler = self.continuation_hyperparams["scheduler_class"](self.optimizer, **scheduler_kwargs)
+                    self.scheduler = self.continuation_hyperparams["scheduler_class"](
+                        self.optimizer, **scheduler_kwargs
+                    )
 
-            Sbus_real_torch = torch.tensor(np.real(self.Sbus_solver), requires_grad=False)
-            Sbus_imag_torch = torch.tensor(np.imag(self.Sbus_solver), requires_grad=False)
+            Sbus_real_torch = torch.tensor(
+                np.real(self.Sbus_solver), requires_grad=False
+            )
+            Sbus_imag_torch = torch.tensor(
+                np.imag(self.Sbus_solver), requires_grad=False
+            )
             self.Sbus_torch = torch.complex(Sbus_real_torch, Sbus_imag_torch)
 
             # Vm_learnable = params[0]
@@ -191,25 +232,35 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
                 if i == 0:
                     self.Ybus_conj_torch = torch.conj(self.Ybus_torch)
                 V_conj_torch = torch.conj(V_torch)
-                S_calc_torch = V_torch * torch.matmul(self.Ybus_conj_torch, V_conj_torch)
+                S_calc_torch = V_torch * torch.matmul(
+                    self.Ybus_conj_torch, V_conj_torch
+                )
 
                 # loss function
                 S_calc_real_relevant_parts = S_calc_torch.real[
-                    np.concatenate([self.pv_nodes_torch, self.pq_nodes_torch])]
+                    np.concatenate([self.pv_nodes_torch, self.pq_nodes_torch])
+                ]
                 S_calc_imag_relevant_parts = S_calc_torch.imag[self.pq_nodes_torch]
-                out = torch.concatenate([S_calc_real_relevant_parts, S_calc_imag_relevant_parts])
+                out = torch.concatenate(
+                    [S_calc_real_relevant_parts, S_calc_imag_relevant_parts]
+                )
 
                 # target
                 Sbus_real_relevant_parts = self.Sbus_torch.real[
-                    np.concatenate([self.pv_nodes_torch, self.pq_nodes_torch])]
+                    np.concatenate([self.pv_nodes_torch, self.pq_nodes_torch])
+                ]
                 Sbus_imag_relevant_parts = self.Sbus_torch.imag[self.pq_nodes_torch]
-                target = torch.concatenate([Sbus_real_relevant_parts, Sbus_imag_relevant_parts])
+                target = torch.concatenate(
+                    [Sbus_real_relevant_parts, Sbus_imag_relevant_parts]
+                )
 
                 loss = loss_fn(out, target)
                 loss_list.append(loss.item())
-                
+
                 if report_metrics:
-                    average_percentage_diff = torch.abs(out - target).sum() / torch.abs(target).sum()
+                    average_percentage_diff = (
+                        torch.abs(out - target).sum() / torch.abs(target).sum()
+                    )
                     average_percentage_diff = average_percentage_diff.detach().numpy()
                     average_percentage_diff_list.append(average_percentage_diff)
 
@@ -220,7 +271,9 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
                     self.optimizer.step()
 
                     if i == 0:
-                        if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                        if isinstance(
+                            self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
+                        ):
                             self.scheduler.step(loss.item())
                         else:
                             self.scheduler.step()
@@ -229,7 +282,10 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
                         if freeze_start_params:
                             pass
                         else:
-                            if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                            if isinstance(
+                                self.scheduler,
+                                torch.optim.lr_scheduler.ReduceLROnPlateau,
+                            ):
                                 self.scheduler.step(loss.item())
                             else:
                                 self.scheduler.step()
@@ -241,11 +297,15 @@ class TimeSeriesPowerFlowSolver(AbstractPowerFlowSolver):
                 break
 
         max_length = max(len(lst) for lst in losses)
-        losses = [lst + [0] * (max_length - len(lst)) for lst in losses]  # padding to uniform length
+        losses = [
+            lst + [0] * (max_length - len(lst)) for lst in losses
+        ]  # padding to uniform length
         losses = np.array(losses)
 
         if report_metrics:
-            average_percentage_diffes = [lst + [0] * (max_length - len(lst)) for lst in average_percentage_diffes]
+            average_percentage_diffes = [
+                lst + [0] * (max_length - len(lst)) for lst in average_percentage_diffes
+            ]
             average_percentage_diffes = np.array(average_percentage_diffes)
             self.average_percentage_diffes = np.array(average_percentage_diffes)
 

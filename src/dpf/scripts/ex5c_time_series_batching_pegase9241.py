@@ -3,6 +3,7 @@ This experiment tries batching on pegase9241..
 We do not include any real time-series data but simply duplicate the inputs from the large grid.
 (no real time series but in terms of runtime it is still informative)
 """
+
 from dpf.scripts.ex4_data_generation import make_grid2op_env, get_loads_gens
 import pandapower as pp
 
@@ -37,8 +38,21 @@ def run_experiment(max_iter, batchsize, use_gpu, evaluate_losses):
     custom_grid_dataset = CustomGridDataset(env_name=case_name)
 
     inputs, targets = custom_grid_dataset.get_sample(sample)
-    prod_p, prod_v, load_p, load_q, line_status, topo_vect, Ybus, Sbus, PV_nodes, slack = inputs
-    a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex = targets  # just ignore these for now
+    (
+        prod_p,
+        prod_v,
+        load_p,
+        load_q,
+        line_status,
+        topo_vect,
+        Ybus,
+        Sbus,
+        PV_nodes,
+        slack,
+    ) = inputs
+    a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex = (
+        targets  # just ignore these for now
+    )
 
     # copy same values for concatenation
 
@@ -71,20 +85,19 @@ def run_experiment(max_iter, batchsize, use_gpu, evaluate_losses):
     prng = np.random.default_rng(42)
 
     # simulate the data
-    load_p_, load_q_, gen_p_, sgen_p_ = get_loads_gens(load_p_init, load_q_init, gen_p_init, sgen_p_init, prng)
+    load_p_, load_q_, gen_p_, sgen_p_ = get_loads_gens(
+        load_p_init, load_q_init, gen_p_init, sgen_p_init, prng
+    )
     nb_ts = gen_p_.shape[0]
     # add slack !
     slack_gens = np.zeros((nb_ts, case.ext_grid.shape[0]))
     if "res_ext_grid" in case:
-        slack_gens += np.tile(case.res_ext_grid["p_mw"].values.reshape(1, -1), (nb_ts, 1))
+        slack_gens += np.tile(
+            case.res_ext_grid["p_mw"].values.reshape(1, -1), (nb_ts, 1)
+        )
     gen_p_g2op = np.concatenate((gen_p_, slack_gens), axis=1)
 
-    env = make_grid2op_env(case,
-                           case_name,
-                           load_p_,
-                           load_q_,
-                           gen_p_g2op,
-                           sgen_p_)
+    env = make_grid2op_env(case, case_name, load_p_, load_q_, gen_p_g2op, sgen_p_)
 
     backend = env.backend
 
@@ -94,11 +107,17 @@ def run_experiment(max_iter, batchsize, use_gpu, evaluate_losses):
         "optimizer_class": torch.optim.Adam,
         "optimizer_kwargs": {"lr": 0.0001, "betas": (0.979681, 0.963442)},
         "scheduler_class": torch.optim.lr_scheduler.ReduceLROnPlateau,
-        "scheduler_kwargs": {"factor": 0.547191, "patience": 41, "threshold_mode": "rel",
-                             "threshold": 0.067321, "cooldown": 97},
+        "scheduler_kwargs": {
+            "factor": 0.547191,
+            "patience": 41,
+            "threshold_mode": "rel",
+            "threshold": 0.067321,
+            "cooldown": 97,
+        },
         "loss_fn": torch.nn.MSELoss(),
         "max_iter": 1000,
-        "tol": 1e-8}
+        "tol": 1e-8,
+    }
 
     print(Sbus.shape[0])  # 500
 
@@ -121,23 +140,23 @@ def run_experiment(max_iter, batchsize, use_gpu, evaluate_losses):
     # solver.prepare_fixed_inputs()
 
     print("run batched time series solver")
-    losses, times, individual_losses = solver.run_time_series_batched(evaluate_losses=evaluate_losses)
+    losses, times, individual_losses = solver.run_time_series_batched(
+        evaluate_losses=evaluate_losses
+    )
 
     # losses has shape [num_iterations]
     # and NOT: [batch_size, num_iterations] since the loss is an aggregation of all time steps simultaneously
 
     losses = list(losses)
 
-    results = {
-        "losses": losses,
-        "times": times,
-        "individual_losses": individual_losses
-    }
+    results = {"losses": losses, "times": times, "individual_losses": individual_losses}
 
     # print(losses)
     print(times[-1] - times[-2])
 
-    with open(f"out/temp/ex5c_time_series_{use_gpu}_{max_iter}_{batchsize}.pkl", "wb") as writeTOFile:
+    with open(
+        f"out/temp/ex5c_time_series_{use_gpu}_{max_iter}_{batchsize}.pkl", "wb"
+    ) as writeTOFile:
         pickle.dump(results, writeTOFile)
 
 
@@ -153,8 +172,12 @@ def main():
     for batch_size in batch_sizes:
         for max_iter in max_iters:
             for use_gpu in use_gpus:
-                run_experiment(max_iter=max_iter, batchsize=batch_size, use_gpu=use_gpu,
-                               evaluate_losses=evaluate_grid_loss)
+                run_experiment(
+                    max_iter=max_iter,
+                    batchsize=batch_size,
+                    use_gpu=use_gpu,
+                    evaluate_losses=evaluate_grid_loss,
+                )
 
 
 if __name__ == "__main__":

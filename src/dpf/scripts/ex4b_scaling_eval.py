@@ -14,8 +14,18 @@ def main():
     # run this to only look at the largest grid with the accuracies.
     sample = 2
     use_gpu = False
-    case_names = ["case118", "case_illinois200", "case300", "case1354pegase", "case1888rte",
-                  "case2869pegase", "case3120sp", "case6495rte", "case6515rte", "case9241pegase"]
+    case_names = [
+        "case118",
+        "case_illinois200",
+        "case300",
+        "case1354pegase",
+        "case1888rte",
+        "case2869pegase",
+        "case3120sp",
+        "case6495rte",
+        "case6515rte",
+        "case9241pegase",
+    ]
     grid_sizes = [118, 200, 300, 1354, 1888, 2869, 3120, 6495, 6515, 9241]
 
     dc_times = []
@@ -46,14 +56,22 @@ def main():
     to_times = []
     to_losses = []
 
-    with open(f"out/temp/ex4b_TO_{optimizers[0]}_{case_name}_{use_gpu}.pkl", "rb") as readFile:
+    with open(
+        f"out/temp/ex4b_TO_{optimizers[0]}_{case_name}_{use_gpu}.pkl", "rb"
+    ) as readFile:
         results = pickle.load(readFile)
         to_times.append(results["times"])
         to_losses.append(results["mismatches"])
 
     iterations_to_plot = 100
-    plt.plot(to_times[-1][:iterations_to_plot], to_losses[-1][:iterations_to_plot],
-             label="DPF", color="green", marker="s", markersize=3)
+    plt.plot(
+        to_times[-1][:iterations_to_plot],
+        to_losses[-1][:iterations_to_plot],
+        label="DPF",
+        color="green",
+        marker="s",
+        markersize=3,
+    )
 
     plt.xlabel("Time [s]")
     plt.ylabel("MSE loss")
@@ -100,22 +118,46 @@ def main():
 
         # create a subplot where only iteration many iterations are done with TO
         for case_name in case_names:
-            with open(f"out/temp/ex4b_TO_{optimizer}_{case_name}_{use_gpu}.pkl", "rb") as readFile:
+            with open(
+                f"out/temp/ex4b_TO_{optimizer}_{case_name}_{use_gpu}.pkl", "rb"
+            ) as readFile:
                 results = pickle.load(readFile)
                 to_times.append(results["times"])
                 to_losses.append(results["mismatches"])
 
         iterations_to_report = [0, 5, 10, 15, 20, 25, 30]
-        print("time per iteration in ms for IEEE118:", (to_times[0][20] - to_times[0][10]) / 10.0 * 1000)
-        for (j, iteration) in enumerate(iterations_to_report):  # list of iterations to report
+        print(
+            "time per iteration in ms for IEEE118:",
+            (to_times[0][20] - to_times[0][10]) / 10.0 * 1000,
+        )
+        for j, iteration in enumerate(
+            iterations_to_report
+        ):  # list of iterations to report
             if j == 0:
-                plt.plot(grid_sizes, [x[iteration] for x in to_times], label="DPF (#iterations)", color=colors[i],
-                         marker="^", markersize=3)
-            plt.plot(grid_sizes, [x[iteration] for x in to_times], color=colors[i], marker="^", markersize=3)
+                plt.plot(
+                    grid_sizes,
+                    [x[iteration] for x in to_times],
+                    label="DPF (#iterations)",
+                    color=colors[i],
+                    marker="^",
+                    markersize=3,
+                )
+            plt.plot(
+                grid_sizes,
+                [x[iteration] for x in to_times],
+                color=colors[i],
+                marker="^",
+                markersize=3,
+            )
 
-        for (j, iteration) in enumerate(iterations_to_report):
-            plt.annotate("(" + str(iteration) + ")", (grid_sizes[-1], to_times[-1][iteration]),
-                         textcoords="offset points", xytext=(-1, 2), fontsize=9)
+        for j, iteration in enumerate(iterations_to_report):
+            plt.annotate(
+                "(" + str(iteration) + ")",
+                (grid_sizes[-1], to_times[-1][iteration]),
+                textcoords="offset points",
+                xytext=(-1, 2),
+                fontsize=9,
+            )
 
     plt.xlabel("Grid Size [#buses]")
     plt.ylabel("Average Time over 10 seeds in s")

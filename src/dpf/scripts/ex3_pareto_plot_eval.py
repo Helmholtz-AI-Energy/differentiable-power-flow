@@ -16,9 +16,9 @@ def main():
     dc_voltage = []
     nr_voltage = []
     x_min = 0
-    y_min = 10 ** 1000
-    x_max = -10 ** 1000
-    y_max = -10 ** 1000
+    y_min = 10**1000
+    x_max = -(10**1000)
+    y_max = -(10**1000)
 
     for seed in range(number_of_seeds):
         with open(f"out/temp/ex3_DC_{seed}.pkl", "rb") as readFile:
@@ -96,7 +96,14 @@ def main():
         y_max = max(y_max, max(avg_to_losses))
 
         # only 100 iterations
-        plt.plot(avg_to_times, avg_to_losses, label=optimizer, color=colors[i], marker="^", markersize=4)
+        plt.plot(
+            avg_to_times,
+            avg_to_losses,
+            label=optimizer,
+            color=colors[i],
+            marker="^",
+            markersize=4,
+        )
 
     plt.xlim([0, x_max])
     # plt.ylim([y_min, y_max])
@@ -107,6 +114,7 @@ def main():
     plt.legend()
     plt.savefig(f"out/plots/ex3_pareto_plot.png")
     plt.close()
+
 
 if __name__ == "__main__":
     main()

@@ -7,6 +7,7 @@ regarding computation time and accuracy in a pareto-plot.
 
 For our optimizer we use the hyperparameters found in ex2 and we evaluate the performance on unseen samples.
 """
+
 import argparse
 import sys
 import time
@@ -20,11 +21,24 @@ from dpf.solvers.solver_torch import TorchPowerFlowSolver
 from dpf.solvers.solver_newton_raphson_cpp import NRPowerFlowSolverCPP
 
 
-def run_experiment(strategy="NR", sample=42, to_optimizer="RMSprop", save_results=False, seed=0):
+def run_experiment(
+    strategy="NR", sample=42, to_optimizer="RMSprop", save_results=False, seed=0
+):
     # load data
     lips_dataset = LipsDataset(load_data=True)
-    inputs, targets = (lips_dataset.get_sample(lips_dataset.train_dataset, sample))
-    prod_p, prod_v, load_p, load_q, line_status, topo_vect, Ybus, Sbus, PV_nodes, slack = inputs
+    inputs, targets = lips_dataset.get_sample(lips_dataset.train_dataset, sample)
+    (
+        prod_p,
+        prod_v,
+        load_p,
+        load_q,
+        line_status,
+        topo_vect,
+        Ybus,
+        Sbus,
+        PV_nodes,
+        slack,
+    ) = inputs
     a_or, a_ex, p_or, p_ex, v_or, v_ex, theta_or, theta_ex = targets
 
     env = grid2op.make(lips_dataset.benchmark.env_name, backend=LightSimBackend())
@@ -37,7 +51,9 @@ def run_experiment(strategy="NR", sample=42, to_optimizer="RMSprop", save_result
         # output: single time and metrics on power mismatch
         start_time = time.perf_counter()
         solver = NRPowerFlowSolverCPP(backend=backend)
-        solver.preprocess(topo_vect, prod_p, prod_v, load_p, load_q, Ybus, Sbus, PV_nodes)
+        solver.preprocess(
+            topo_vect, prod_p, prod_v, load_p, load_q, Ybus, Sbus, PV_nodes
+        )
         solver.init_v("dc")
 
         """ones-init vs dc-init
@@ -77,7 +93,9 @@ def run_experiment(strategy="NR", sample=42, to_optimizer="RMSprop", save_result
         # output: single time and metrics on power mismatch
         start_time = time.perf_counter()
         solver = NRPowerFlowSolverCPP(backend=backend)
-        solver.preprocess(topo_vect, prod_p, prod_v, load_p, load_q, Ybus, Sbus, PV_nodes)
+        solver.preprocess(
+            topo_vect, prod_p, prod_v, load_p, load_q, Ybus, Sbus, PV_nodes
+        )
         solver.init_v("dc")
         solver.run_pf()
         V = solver.V
@@ -109,13 +127,17 @@ def run_experiment(strategy="NR", sample=42, to_optimizer="RMSprop", save_result
         if to_optimizer == "RMSprop":
             hyperparams = {
                 "optimizer_class": torch.optim.RMSprop,
-                "optimizer_kwargs": {"lr": 0.00605328655257, "alpha": 0.5545244691705359,
-                                     "weight_decay": 0.0562911935674707, "momentum": 0.9805599222530874},
+                "optimizer_kwargs": {
+                    "lr": 0.00605328655257,
+                    "alpha": 0.5545244691705359,
+                    "weight_decay": 0.0562911935674707,
+                    "momentum": 0.9805599222530874,
+                },
                 "scheduler_class": torch.optim.lr_scheduler.StepLR,
                 "scheduler_kwargs": {"gamma": 0.9445849898428068, "step_size": 6},
                 "loss_fn": torch.nn.MSELoss(),
                 "max_iter": 1000,
-                "tol": 1e-8
+                "tol": 1e-8,
             }
 
         if to_optimizer == "Adam":
@@ -123,14 +145,22 @@ def run_experiment(strategy="NR", sample=42, to_optimizer="RMSprop", save_result
                 "optimizer_class": torch.optim.Adam,
                 "optimizer_kwargs": {"lr": 0.003377, "betas": (0.979681, 0.963442)},
                 "scheduler_class": torch.optim.lr_scheduler.ReduceLROnPlateau,
-                "scheduler_kwargs": {"factor": 0.547191, "patience": 41, "threshold_mode": "rel",
-                                     "threshold": 0.067321, "cooldown": 97},
+                "scheduler_kwargs": {
+                    "factor": 0.547191,
+                    "patience": 41,
+                    "threshold_mode": "rel",
+                    "threshold": 0.067321,
+                    "cooldown": 97,
+                },
                 "loss_fn": torch.nn.MSELoss(),
                 "max_iter": 1000,
-                "tol": 1e-8}
+                "tol": 1e-8,
+            }
 
         solver = TorchPowerFlowSolver(backend=backend, hyperparams=hyperparams)
-        solver.preprocess(topo_vect, prod_p, prod_v, load_p, load_q, Ybus, Sbus, PV_nodes)
+        solver.preprocess(
+            topo_vect, prod_p, prod_v, load_p, load_q, Ybus, Sbus, PV_nodes
+        )
 
         # solver.init_v("uniform_complex", random_init_seed=seed)
         solver.init_v("ones")
@@ -142,7 +172,9 @@ def run_experiment(strategy="NR", sample=42, to_optimizer="RMSprop", save_result
 
         times = [x + (time_before_pf - start_time) for x in solver.times_list]
         times_without_opt_init = [x - solver.optimizer_init_time for x in times]
-        times_without_opt_init.append(end_time - start_time - solver.optimizer_init_time)
+        times_without_opt_init.append(
+            end_time - start_time - solver.optimizer_init_time
+        )
         voltage = [V]
         mismatches_mse = list(solver.loss_list)
 
@@ -153,10 +185,12 @@ def run_experiment(strategy="NR", sample=42, to_optimizer="RMSprop", save_result
             "times": times,
             "voltage": voltage,
             "mismatches": mismatches_mse,
-            "times_without_opt_init": times_without_opt_init
+            "times_without_opt_init": times_without_opt_init,
         }
         if save_results:
-            with open(f"out/temp/ex3_TO_{to_optimizer}_{seed}.pkl", "wb") as writeTOFile:
+            with open(
+                f"out/temp/ex3_TO_{to_optimizer}_{seed}.pkl", "wb"
+            ) as writeTOFile:
                 pickle.dump(results, writeTOFile)
 
 
@@ -181,7 +215,9 @@ def main(argv=None):
 
     for run_number in range(number_of_seeds):
         sample = run_number  # grid sample is the seed number
-        run_experiment(method, sample, to_optimizer, save_results=False, seed=run_number)  # ensure warm start
+        run_experiment(
+            method, sample, to_optimizer, save_results=False, seed=run_number
+        )  # ensure warm start
         run_experiment(method, sample, to_optimizer, save_results=True, seed=run_number)
 
 
