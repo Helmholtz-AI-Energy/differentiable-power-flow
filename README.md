@@ -11,7 +11,7 @@
 Energy grids are vital but fragile infrastructures that require active management to maintain stability and avoid blackouts, a task complicated by increasing size and the transition to fluctuating renewable sources. We explore Differentiable Power Flow Optimization (DPF), a new method for power-flow simulation using gradient-based optimization, which, while slower than the standard Newton-Raphson (NR) for small grids, shows promise for parallelized time-series calculations and significantly outperforms NR in terms of time and memory scaling on very large grids.
 
 ## Installation
-We heavily recommend installing the `differentiable-power-flow` package in a dedicated `Python3.11+` virtual environment. You can
+We heavily recommend installing the `differentiable-power-flow` package in a dedicated `Python3.10+` virtual environment. You can
 install ``differentiable-power-flow`` directly from the GitHub repository via:
 ```bash
 pip install git+https://github.com/Helmholtz-AI-Energy/differentiable-power-flow.git
@@ -23,6 +23,12 @@ Alternatively, you can install ``differentiable power flow`` locally. To achieve
    ```
 2. Install the package from the main branch:
    - Install basic dependencies: ``pip install -e .``
+
+## Running experiments
+To run experiments, you can run the project scripts collectively with  
+- ``run-all-relevant`` (or via ``python src/dpf/scripts/run_all_relevant.py``)
+or run the experiments individually with
+- ``run-ex1`` (or via ``python src/dpf/scripts/ex1_running_torch_solver.py``).
 
 ## How to contribute
 Check out our [contribution guidelines](CONTRIBUTING.md) if you are interested in contributing to the `differentiable-power-flow` project :fire:.
