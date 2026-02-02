@@ -4,6 +4,19 @@ from matplotlib import pyplot as plt
 
 
 def main():
+    plt.rcParams.update(
+        {
+            "font.size": 14,
+            "axes.labelsize": 16,
+            "axes.titlesize": 16,
+            "legend.fontsize": 14,
+            "xtick.labelsize": 14,
+            "ytick.labelsize": 14,
+            "lines.linewidth": 2,
+            "lines.markersize": 6,
+        }
+    )
+
     max_iter_nr = (
         6  # for case9241pegase this is enough, for random inputs more might be needed
     )
@@ -72,7 +85,7 @@ def main():
             (batch_sizes_to_report[-1], to_times[-1][iteration - 1]),
             textcoords="offset points",
             xytext=(-1, 2),
-            fontsize=9,
+            fontsize=12,
         )
 
     plt.xlabel("Grid Size in multiples of 9241")

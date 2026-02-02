@@ -3,6 +3,19 @@ import matplotlib.pyplot as plt
 
 
 def main():
+    plt.rcParams.update(
+        {
+            "font.size": 14,
+            "axes.labelsize": 16,
+            "axes.titlesize": 16,
+            "legend.fontsize": 14,
+            "xtick.labelsize": 14,
+            "ytick.labelsize": 14,
+            "lines.linewidth": 2,
+            "lines.markersize": 6,
+        }
+    )
+
     nbs_extra_connections_to_report = [
         500,
         500,
@@ -52,7 +65,7 @@ def main():
 
     plt.xlabel(" Number of added connections")
     plt.ylabel("Time (init excluded) in s")
-    plt.title(f"Power-flow time for case9241pegase with additional random connections")
+    plt.title(f"Power-flow time for case9241pegase")
     plt.legend()
     # plt.show()
     plt.savefig(f"out/plots/ex7c_scalability.png")

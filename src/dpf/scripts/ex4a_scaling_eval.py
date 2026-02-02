@@ -214,6 +214,18 @@ def create_small_grid_plot():
 
 def main():
     create_times_plot()
+    plt.rcParams.update(
+        {
+            "font.size": 14,
+            "axes.labelsize": 16,
+            "axes.titlesize": 16,
+            "legend.fontsize": 14,
+            "xtick.labelsize": 14,
+            "ytick.labelsize": 14,
+            "lines.linewidth": 2,
+            "lines.markersize": 6,
+        }
+    )
     create_large_grid_plot()
     create_small_grid_plot()
 

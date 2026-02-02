@@ -3,6 +3,18 @@ import matplotlib.pyplot as plt
 
 
 def main():
+    plt.rcParams.update(
+        {
+            "font.size": 14,
+            "axes.labelsize": 16,
+            "axes.titlesize": 16,
+            "legend.fontsize": 14,
+            "xtick.labelsize": 14,
+            "ytick.labelsize": 14,
+            "lines.linewidth": 2,
+            "lines.markersize": 6,
+        }
+    )
 
     batch_sizes = [1, 2, 4, 8, 16, 32, 64]
     max_iters = [1000]
@@ -34,7 +46,6 @@ def main():
             plt.xlabel("Batch Size")
             plt.ylabel("Time per iteration and sample (ms)")
             plt.title(f"Speed-up from batching ({device})")
-            plt.legend()
             plt.plot(batch_sizes, times_per_iteration_per_sample, color="blue")
             plt.savefig(f"out/plots/ex5c_time_series_batching_{device}.png")
 

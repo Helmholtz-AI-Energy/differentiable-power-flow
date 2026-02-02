@@ -4,6 +4,19 @@ import matplotlib.ticker as mticker
 
 
 def main():
+    plt.rcParams.update(
+        {
+            "font.size": 14,
+            "axes.labelsize": 16,
+            "axes.titlesize": 16,
+            "legend.fontsize": 14,
+            "xtick.labelsize": 14,
+            "ytick.labelsize": 14,
+            "lines.linewidth": 2,
+            "lines.markersize": 6,
+        }
+    )
+
     start_iter = 1000
     max_iter = 300
 
@@ -38,13 +51,12 @@ def main():
             (i, avg_diffes[i][0] * 100),
             textcoords="offset points",
             xytext=(0, 4),
-            fontsize=8,
+            fontsize=12,
         )
 
     plt.xlabel("Time step")
     plt.ylabel("Initial flow deviation in %")
     plt.title(f"Solution distance using solution of previous time step")
-    plt.legend()
     plt.savefig(f"out/plots/ex5_solution_distance.png")
     plt.close()
 
@@ -57,7 +69,7 @@ def main():
         (0, avg_diffes[0][0] * 100),
         textcoords="offset points",
         xytext=(-1, 0),
-        fontsize=8,
+        fontsize=12,
     )
     # plt.annotate(f"{round(losses[0][100], 2)} ", (0, losses[0][100]),
     #             textcoords="offset points", xytext=(-1, 5), fontsize=8)
@@ -66,20 +78,19 @@ def main():
         (200, avg_diffes[0][200] * 100),
         textcoords="offset points",
         xytext=(-1, 5),
-        fontsize=8,
+        fontsize=12,
     )
     plt.annotate(
         f"{round(avg_diffes[0][start_iter - 1] * 100, 2)} ",
         (start_iter - 1, avg_diffes[0][start_iter - 1] * 100),
         textcoords="offset points",
         xytext=(-1, 5),
-        fontsize=8,
+        fontsize=12,
     )
 
     plt.xlabel("Iterations")
     plt.ylabel("Mean flow deviation in %")
     plt.title(f"Training curve of first time step")
-    plt.legend()
     plt.savefig(f"out/plots/ex5_first_time_step.png")
     plt.close()
 
@@ -155,7 +166,6 @@ def main():
     plt.ylabel("Flow deviations in %")
 
     plt.title(f"Training continuation with new injections")
-    plt.legend()
     plt.savefig(f"out/plots/ex5a_time_series.png")
     plt.close()
 
